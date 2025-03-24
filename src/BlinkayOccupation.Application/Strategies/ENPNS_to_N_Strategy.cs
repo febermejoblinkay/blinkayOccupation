@@ -1,0 +1,22 @@
+﻿using BlinkayOccupation.Domain.Contexts;
+using BlinkayOccupation.Domain.Models;
+using BlinkayOccupation.Domain.Repositories.Capacity;
+using BlinkayOccupation.Domain.Repositories.Occupation;
+
+namespace BlinkayOccupation.Application.Strategies
+{
+    public class ENPNS_to_N_Strategy : BaseOccupationStrategy
+    {
+        public ENPNS_to_N_Strategy(
+            IOccupationRepository occupationRepository,
+            ICapacitiesRepository capacitiesRepository)
+        : base(occupationRepository, capacitiesRepository) { }
+
+        protected override void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null)
+        {
+            occupation.UnpaidRealOccupation = (occupation.UnpaidRealOccupation ?? 0) + 1;
+            occupation.Total = capacity != null ? capacity.Count : 0;
+            //occupation.Total = (occupation.PaidRealOccupation ?? 0) + (occupation.UnpaidRealOccupation ?? 0);
+        }
+    }
+}

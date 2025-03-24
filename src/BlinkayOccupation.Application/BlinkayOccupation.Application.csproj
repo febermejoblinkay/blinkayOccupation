@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlinkayOccupation.Domain\BlinkayOccupation.Domain.csproj" />
+    <ProjectReference Include="..\BlinkayOccupation.Infrastructure\BlinkayOccupation.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
