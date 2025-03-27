@@ -22,6 +22,14 @@ public partial class Stays : IAuditable
 
     public int? CaseId { get; set; }
 
+    public DateTime? InitPaymentDate { get; set; }
+
+    public DateTime? EndPaymentDate { get; set; }
+    
+    public bool? InitPaymentProcessed { get; set; }
+
+    public bool? EndPaymentProcessed { get; set; }
+
     public DateTime Created { get; set; }
 
     public bool Deleted { get; set; }

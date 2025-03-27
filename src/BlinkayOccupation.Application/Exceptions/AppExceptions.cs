@@ -80,22 +80,6 @@
         }
     }
 
-    public class ParkingRightsExistsInStayException : Exception
-    {
-        public ParkingRightsExistsInStayException() : base("Parking rights already exist in Stay.")
-        {
-        }
-
-        public ParkingRightsExistsInStayException(string message) : base(message)
-        {
-        }
-
-        public ParkingRightsExistsInStayException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
-
     public class ParkingRightsNoValidEndDateException : Exception
     {
         public ParkingRightsNoValidEndDateException() : base("The Parking right has no validTo date defined.")

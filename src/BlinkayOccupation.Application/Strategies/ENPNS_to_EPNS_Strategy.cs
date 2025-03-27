@@ -10,17 +10,12 @@ namespace BlinkayOccupation.Application.Strategies
         public ENPNS_to_EPNS_Strategy(IOccupationRepository occupationRepository, ICapacitiesRepository capacitiesRepository)
             : base(occupationRepository, capacitiesRepository) { }
 
-        protected override void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null)
+        protected override void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null, Occupations? oldOccupation = null)
         {
-            //Esto se hace en el BaseOccupationStrategy
-            //if (!occupation.UnpaidRealOccupation.HasValue || occupation.UnpaidRealOccupation.Value == 0)
-            //{
-            //    occupation.UnpaidRealOccupation = 0;
-            //}
-            //else
-            //{
-            //    occupation.UnpaidRealOccupation = occupation.UnpaidRealOccupation + 1;
-            //}
+            if (oldOccupation != null)
+            {
+                oldOccupation.UnpaidRealOccupation = (oldOccupation.UnpaidRealOccupation ?? 0) - 1;
+            }
 
             occupation.PaidRealOccupation = (occupation.PaidRealOccupation ?? 0) + 1;
             occupation.PaidOccupation = (occupation.PaidOccupation ?? 0) + 1;

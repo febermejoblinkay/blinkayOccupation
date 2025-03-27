@@ -24,6 +24,15 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
             //await context.SaveChangesAsync();
         }
 
+        public async Task UpdateRangeAsync(List<Occupations> occupations, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (occupations?.Count == 0) throw new ArgumentException("Occupations list can not be null.", nameof(occupations));
+
+            context.Occupations.UpdateRange(occupations);
+            //await context.SaveChangesAsync();
+        }
+
         public async Task<List<Occupations>?> GetOccupationsAvailable(
             DateTime date,
             string installationId,

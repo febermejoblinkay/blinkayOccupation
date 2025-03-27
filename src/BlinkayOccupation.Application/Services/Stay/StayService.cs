@@ -10,6 +10,7 @@ using BlinkayOccupation.Domain.Repositories.Stay;
 using BlinkayOccupation.Domain.Repositories.StayParkingRight;
 using BlinkayOccupation.Domain.Repositories.Zone;
 using BlinkayOccupation.Domain.UnitOfWork;
+using Microsoft.Extensions.Logging;
 
 namespace BlinkayOccupation.Application.Services.Stay
 {
@@ -25,6 +26,8 @@ namespace BlinkayOccupation.Application.Services.Stay
         private readonly IUnitOfWork _unitOfWork;
         private readonly IOccupationStrategyFactory _occupationStrategyFactory;
 
+        private readonly ILogger<StayService> _logger;
+
         public StayService(
             IParkingEventsRepository parkingEventsRepository,
             IParkingRightsRepository parkingRightsRepository,
@@ -34,7 +37,8 @@ namespace BlinkayOccupation.Application.Services.Stay
             IStayParkingRightsRepository stayPRightRepository,
             ICapacitiesRepository capacitiesRepository,
             IUnitOfWork unitOfWork,
-            IOccupationStrategyFactory occupationStrategyFactory)
+            IOccupationStrategyFactory occupationStrategyFactory,
+            ILogger<StayService> logger)
         {
             _parkingEventsRepository = parkingEventsRepository;
             _parkingRightsRepository = parkingRightsRepository;
@@ -45,6 +49,7 @@ namespace BlinkayOccupation.Application.Services.Stay
             _capacitiesRepository = capacitiesRepository;
             _unitOfWork = unitOfWork;
             _occupationStrategyFactory = occupationStrategyFactory;
+            _logger = logger;
         }
 
         public async Task<string> AddStay(AddStayRequest request)
@@ -59,9 +64,10 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var installation = await GetInstallationAsync(request.InstallationId);
                 var zone = await GetZoneAsync(request.ZoneId);
 
-                await CheckIfPkRightsAlreadyExistInOtherStay(request.ParkingRightIds);
+                DateTime? minInitValidPkDate, maxEndValidPkDate;
+                GetMinMaxPaymentsDate(existingPkRights, out minInitValidPkDate, out maxEndValidPkDate);
 
-                var stay = CreateStay(request, existingPkEvents, installation, zone);
+                var stay = CreateStay(request, existingPkEvents, installation, zone, minInitValidPkDate, maxEndValidPkDate);
 
                 await _staysRepository.AddAsync(stay, _unitOfWork.Context);
 
@@ -74,26 +80,21 @@ namespace BlinkayOccupation.Application.Services.Stay
                 //los inserts siempre van a ser: new stay => N
                 var newState = "N";
                 var strategy = _occupationStrategyFactory.GetStrategy(oldState, newState);
-                var entryEvent = existingPkEvents.FirstOrDefault(x => x?.Id == stay.EntryEventId);
-                var exitEvent = existingPkEvents.FirstOrDefault(x => x?.Id == stay.ExitEventId);
                 DateTime? paymentEndDate = null;
-                //nos fijamos si la fecha actual es menor al validTo
-                //if (request.ExitDate.HasValue)
-                //{
                 paymentEndDate = existingPkRights?.FirstOrDefault(x => DateTime.UtcNow < x.ValidTo)?.ValidTo;
-                //}
 
                 var tariffId = GetTariffId(existingPkRights, stay, oldStateObj);
 
                 await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context, paymentEndDate);
-
+                _logger.LogInformation("BlinkayOccupation-AddStay: Strategy:{strategy} for state:{state}, executed correctly", strategy.ToString(), string.Concat(oldState, "-", newState));
                 await _unitOfWork.CommitTransactionAsync();
 
                 return stay.Id;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "BlinkayOccupation-AddStay: An error occured when trying to add an stay, transaction rollbacked.");
                 throw;
             }
         }
@@ -107,11 +108,9 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var stay = await _staysRepository.GetByIdAsync(request.StayId, _unitOfWork.Context);
                 if (stay == null) throw new StayNotFoundException("Stay not found.");
 
-                bool oldHasPayment = await CheckIfStayHadPayment(request, stay.StaysParkingRights);
+                bool oldHasPayment = await CheckIfStayHadPayment(request, stay);
                 var oldStateObj = StayState.FromStay(stay, oldHasPayment);
                 string oldState = oldStateObj.ToString();
-
-                await CheckIfPkRightsAlreadyExistInOtherStay(request.ParkingRightIds);
 
                 var existingPkEvents = await GetExistingParkingEventsAsync(request.EntryEventId, request.ExitEventId);
                 var existingPkRights = await GetExistingParkingRightsAsync(request.ParkingRightIds);
@@ -122,43 +121,47 @@ namespace BlinkayOccupation.Application.Services.Stay
                     existingPkRights.AddRange(oldPkRights);
                 }
 
-                UpdateStayEntity(stay, request, existingPkEvents);
+                var currentInstallation = await _installationRepository.GetByIdAsync(stay?.InstallationId, _unitOfWork.Context);
+
+                DateTime? minInitValidPkDate, maxEndValidPkDate;
+                GetMinMaxPaymentsDate(existingPkRights, out minInitValidPkDate, out maxEndValidPkDate);
+
+                UpdateStayEntity(stay, request, existingPkEvents, currentInstallation.ConfigurationTimeZoneId, minInitValidPkDate, maxEndValidPkDate);
 
                 await _staysRepository.UpdateAsync(stay, _unitOfWork.Context);
 
                 await HandleStayParkingRightsAsync(stay, existingPkRights);
 
                 var newHasPayment = await CheckIfStayHasPayment(stay, request, existingPkRights);
-                //newHasPayment = si ya el stay tenia pago o si llega un nuevo pago que cubre el periodo
                 var newStateObj = StayState.FromStay(stay, newHasPayment);
                 var newState = newStateObj.ToString();
                 var strategy = _occupationStrategyFactory.GetStrategy(oldState, newState);
-                var entryEvent = existingPkEvents.FirstOrDefault(x => x?.Id == stay?.EntryEventId);
-                var exitEvent = existingPkEvents.FirstOrDefault(x => x?.Id == stay.ExitEventId);
 
-                DateTime? paymentEndDate = null;
-                if (request.ExitDate.HasValue || existingPkRights?.Count > 0)
-                {
-                    if (request.ExitDate.HasValue || stay.ExitDate.HasValue)
-                    {
-                        var exitDate = request.ExitDate ?? stay.ExitDate;
-                        paymentEndDate = existingPkRights.FirstOrDefault(x => exitDate.Value <= x.ValidTo)?.ValidTo;
-                    }
-                    else if (request.EntryDate.HasValue || stay.EntryDate.HasValue)
-                    {
-                        var entryDate = request.EntryDate ?? stay.EntryDate;
-                        paymentEndDate = existingPkRights.FirstOrDefault(x => entryDate.Value >= x.ValidFrom && entryDate.Value <= x.ValidTo)?.ValidTo;
-                    }
-                    else
-                    {
-                        throw new ParkingRightsNoValidEndDateException("The Parking right has no validTo date defined.");
-                    }
-                }
+                //ESTO NO SERÌA NECESARIO
+                //DateTime? paymentEndDate = null;
+                //if (request.ExitDate.HasValue || existingPkRights?.Count > 0)
+                //{
+                //    if (request.ExitDate.HasValue || stay.ExitDate.HasValue)
+                //    {
+                //        var exitDate = request.ExitDate ?? stay.ExitDate;
+                //        paymentEndDate = existingPkRights.FirstOrDefault(x => exitDate.Value <= x.ValidTo)?.ValidTo;
+                //    }
+                //    else if (request.EntryDate.HasValue || stay.EntryDate.HasValue)
+                //    {
+                //        var entryDate = request.EntryDate ?? stay.EntryDate;
+                //        paymentEndDate = existingPkRights.FirstOrDefault(x => entryDate.Value >= x.ValidFrom && entryDate.Value <= x.ValidTo)?.ValidTo;
+                //    }
+                //    else
+                //    {
+                //        throw new ParkingRightsNoValidEndDateException("The Parking right has no validTo date defined.");
+                //    }
+                //}
 
                 var tariffId = GetTariffId(existingPkRights, stay, oldStateObj.HasPayment ? oldStateObj : newStateObj);
 
-                await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context, paymentEndDate);
-
+                await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context, maxEndValidPkDate);
+                _logger.LogInformation("BlinkayOccupation-UpdateStay: Strategy:{strategy} for state:{state}, executed correctly", strategy.ToString(), string.Concat(oldState, "-", newState));
+                
                 await _unitOfWork.CommitTransactionAsync();
 
                 return stay.Id;
@@ -166,8 +169,30 @@ namespace BlinkayOccupation.Application.Services.Stay
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
-                throw new Exception("Error updating Stay: " + ex.Message, ex);
+                _logger.LogError(ex, "BlinkayOccupation-UpdateStay: An error occured when trying to update an stay, transaction rollbacked.");
+                throw;
             }
+        }
+
+        private void GetMinMaxPaymentsDate(List<ParkingRights>? existingPkRights, out DateTime? minInitValidPkDate, out DateTime? maxEndValidPkDate)
+        {
+            minInitValidPkDate = null;
+            maxEndValidPkDate = null;
+            if (existingPkRights != null && existingPkRights.Any())
+            {
+                minInitValidPkDate = existingPkRights.OrderBy(x => x.ValidFrom).FirstOrDefault()?.ValidFrom;
+                maxEndValidPkDate = existingPkRights.OrderByDescending(x => x.ValidTo).FirstOrDefault()?.ValidTo;
+            }
+        }
+
+        private DateTime ConvertToInstallationDateTime(DateTime dateToConvert, string configTimeZoneId)
+        {
+            return DateTime.SpecifyKind(ToInstallationDate(dateToConvert, configTimeZoneId), DateTimeKind.Utc);
+        }
+
+        private DateTime ToInstallationDate(DateTime dateTime, string configTimeZoneId)
+        {
+            return TimeZoneInfo.ConvertTimeBySystemTimeZoneId(dateTime, configTimeZoneId);
         }
 
         private string? GetTariffId(List<ParkingRights>? existingPkRights, Stays stay, StayState stateObj)
@@ -194,8 +219,8 @@ namespace BlinkayOccupation.Application.Services.Stay
         {
             if (request.EntryDate.HasValue || stay.EntryDate.HasValue)
             {
-                DateTime? entryDate = request.EntryDate ?? stay.EntryDate;
-                DateTime? exitDate = request.ExitDate ?? stay.ExitDate;
+                DateTime? entryDate = request.EntryDate.HasValue ? ConvertToInstallationDateTime(request.EntryDate.Value, stay.Installation.ConfigurationTimeZoneId) : stay.EntryDate;
+                DateTime? exitDate = request.ExitDate.HasValue ? ConvertToInstallationDateTime(request.ExitDate.Value, stay.Installation.ConfigurationTimeZoneId) : stay.ExitDate;
 
                 if (entryDate.HasValue && exitDate.HasValue)
                 {
@@ -214,35 +239,28 @@ namespace BlinkayOccupation.Application.Services.Stay
             return false;
         }
 
-        private async Task<bool> CheckIfStayHadPayment(UpdateStayRequest request, ICollection<StaysParkingRights> stayParkingRights = null)
+        private async Task<bool> CheckIfStayHadPayment(UpdateStayRequest request, Stays stay)
         {
-            if (stayParkingRights?.Count > 0 && request.EntryDate.HasValue && request.ExitDate.HasValue)
+            var configurationTimeZoneId = stay.Installation.ConfigurationTimeZoneId;
+            var stayParkingRights = stay.StaysParkingRights;
+            DateTime? entryDate = request.EntryDate.HasValue ? ConvertToInstallationDateTime(request.EntryDate.Value, configurationTimeZoneId) : (stay.EntryDate.HasValue ? stay.EntryDate.Value : null);
+            DateTime? exitDate = request.ExitDate.HasValue ? ConvertToInstallationDateTime(request.ExitDate.Value, configurationTimeZoneId) : (stay.ExitDate.HasValue ? stay.ExitDate.Value : null);
+
+            if (stayParkingRights?.Count > 0 && entryDate.HasValue && exitDate.HasValue)
             {
-                return stayParkingRights.Any(x => request.EntryDate.Value >= x?.ParkingRight?.ValidFrom && request.ExitDate.Value <= x?.ParkingRight?.ValidTo);
+                return stayParkingRights.Any(x => entryDate.Value >= x?.ParkingRight?.ValidFrom && exitDate.Value <= x?.ParkingRight?.ValidTo);
             }
-            else if (stayParkingRights?.Count > 0 && request.EntryDate.HasValue && !request.ExitDate.HasValue)
+            else if (stayParkingRights?.Count > 0 && entryDate.HasValue && !exitDate.HasValue)
             {
-                return stayParkingRights.Any(x => request.EntryDate.Value >= x?.ParkingRight?.ValidFrom);
+                return stayParkingRights.Any(x => entryDate.Value >= x?.ParkingRight?.ValidFrom);
             }
-            else if (stayParkingRights?.Count > 0 && !request.EntryDate.HasValue && request.ExitDate.HasValue)
+            else if (stayParkingRights?.Count > 0 && !entryDate.HasValue && exitDate.HasValue)
             {
-                return stayParkingRights.Any(x => request.ExitDate.Value <= x?.ParkingRight?.ValidTo);
+                return stayParkingRights.Any(x => exitDate.Value <= x?.ParkingRight?.ValidTo);
             }
             else
             {
                 return false;
-            }
-        }
-
-        private async Task CheckIfPkRightsAlreadyExistInOtherStay(List<string> pkRightIds)
-        {
-            if (pkRightIds?.Count > 0)
-            {
-                var existingPkRightsInStay = await _stayPkRightRepository.CheckParkingRightExistsInOtherStayAsync(pkRightIds, _unitOfWork.Context);
-                if (existingPkRightsInStay?.Count > 0)
-                {
-                    throw new ParkingRightsExistsInStayException();
-                }
             }
         }
 
@@ -300,7 +318,7 @@ namespace BlinkayOccupation.Application.Services.Stay
             return zone;
         }
 
-        private Stays CreateStay(AddStayRequest request, List<ParkingEvents?> existingPkEvents, Installations installation, Zones zone)
+        private Stays CreateStay(AddStayRequest request, List<ParkingEvents?> existingPkEvents, Installations installation, Zones zone, DateTime? minInitValidPkDate, DateTime? maxEndValidPkDate)
         {
             return new Stays
             {
@@ -310,18 +328,22 @@ namespace BlinkayOccupation.Application.Services.Stay
                 ZoneId = request.ZoneId,
                 EntryEventId = !string.IsNullOrWhiteSpace(request.EntryEventId) && existingPkEvents.Any(x => x.Id == request.EntryEventId) ? request.EntryEventId : null,
                 ExitEventId = !string.IsNullOrWhiteSpace(request.ExitEventId) && existingPkEvents.Any(x => x.Id == request.ExitEventId) ? request.ExitEventId : null,
-                EntryDate = request.EntryDate,
-                ExitDate = request.ExitDate
+                EntryDate = request.EntryDate.HasValue ? ConvertToInstallationDateTime(request.EntryDate.Value, installation.ConfigurationTimeZoneId) : null,
+                ExitDate = request.ExitDate.HasValue ? ConvertToInstallationDateTime(request.ExitDate.Value, installation.ConfigurationTimeZoneId) : null,
+                InitPaymentDate = minInitValidPkDate.HasValue ? minInitValidPkDate.Value : null,
+                EndPaymentDate = maxEndValidPkDate.HasValue ? maxEndValidPkDate.Value : null
             };
         }
 
-        private void UpdateStayEntity(Stays stay, UpdateStayRequest request, List<ParkingEvents?> existingPkEvents)
+        private void UpdateStayEntity(Stays stay, UpdateStayRequest request, List<ParkingEvents?> existingPkEvents, string configTimezoneId, DateTime? minInitValidPkDate, DateTime? maxEndValidPkDate)
         {
             stay.EntryEventId = !string.IsNullOrWhiteSpace(request.EntryEventId) && existingPkEvents.Any(x => x.Id == request.EntryEventId) ? request.EntryEventId : stay.EntryEventId;
             stay.ExitEventId = !string.IsNullOrWhiteSpace(request.ExitEventId) && existingPkEvents.Any(x => x.Id == request.ExitEventId) ? request.ExitEventId : stay.ExitEventId;
-            stay.EntryDate = request.EntryDate ?? stay.EntryDate;
-            stay.ExitDate = request.ExitDate ?? stay.ExitDate;
+            stay.EntryDate = request.EntryDate.HasValue ? ConvertToInstallationDateTime(request.EntryDate.Value, configTimezoneId) : (stay.EntryDate.HasValue ? ConvertToInstallationDateTime(stay.EntryDate.Value, configTimezoneId) : null);
+            stay.ExitDate = request.ExitDate.HasValue ? ConvertToInstallationDateTime(request.ExitDate.Value, configTimezoneId) : (stay.ExitDate.HasValue ? ConvertToInstallationDateTime(stay.ExitDate.Value, configTimezoneId) : null);
             stay.CaseId = request.CaseId.HasValue && (CameraOperationCase)request.CaseId.Value != CameraOperationCase.Undefined ? request.CaseId.Value : stay.CaseId;
+            stay.InitPaymentDate = minInitValidPkDate ?? minInitValidPkDate;
+            stay.EndPaymentDate = maxEndValidPkDate ?? maxEndValidPkDate;
         }
 
         private async Task HandleStayParkingRightsAsync(Stays stay, List<ParkingRights> existingPkRights)

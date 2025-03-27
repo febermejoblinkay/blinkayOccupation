@@ -24,59 +24,61 @@ namespace BlinkayOccupation.Application.Strategies
             BControlDbContext context,
             DateTime? paymentEndDate = null)
         {
-            if (!stay.EntryDate.HasValue && !stay.ExitDate.HasValue && !paymentEndDate.HasValue)
+            if (stay.EntryEvent == null && stay.ExitEvent == null && !paymentEndDate.HasValue)
                 return;
 
-            var hasBeenInitialized = false;
-            var date = stay.EntryDate.HasValue ? stay.EntryDate.Value.Date : (stay.ExitDate.HasValue ? stay.ExitDate.Value.Date : DateTime.UtcNow.Date);
+            var date = DateTime.UtcNow.Date;
             var zoneId = stay.ZoneId;
             var installationId = stay.InstallationId;
+            var oldStayHasntPayment = oldState.Split(',')[1] == "NP";
+            var newStayHasPayment = !newState.Equals("N") ? newState.Split(',')[1] == "P" : false;
             var existingOccupations = await _occupationRepository.GetOccupationsAvailable(date, installationId, zoneId, tariffId, context);
             var capacity = await _capacitiesRepository.GetAvailableCapacities(installationId, zoneId, tariffId, stay.EntryDate, stay.ExitDate, context);
-            Occupations occupation = null;
 
-            if (existingOccupations?.Count == 0)
+            if (existingOccupations is null || !existingOccupations.Any())
             {
-                occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
-                //hasBeenInitialized = true;
+                var occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
                 ApplyOccupationChanges(occupation, capacity, paymentEndDate);
             }
             else if (existingOccupations.Count == 2)
             {
-                foreach (var currentOccupation in existingOccupations)
-                {
-                    //Si viene de una estancia creada que ya tiene una tarifa asociada no decrementarlo
-                    if (string.IsNullOrWhiteSpace(currentOccupation?.TariffId) && !string.IsNullOrWhiteSpace(tariffId))
-                    {
-                        currentOccupation.UnpaidRealOccupation = (currentOccupation.UnpaidRealOccupation ?? 0) - 1;
-                        await _occupationRepository.UpdateAsync(currentOccupation, context);
-                    }
-                    else
-                    {
-                        ApplyOccupationChanges(currentOccupation, capacity, paymentEndDate);
-                    }
-                }
+                await HandleTwoOccupations(existingOccupations, oldStayHasntPayment, newStayHasPayment, capacity, paymentEndDate, context);
             }
-            else //if (existingOccupations.Count == 1 && existingOccupations.Any(x => !string.IsNullOrWhiteSpace(x.TariffId)))
+            else if (existingOccupations.Count == 1 && oldStayHasntPayment && newStayHasPayment)
             {
-                if (existingOccupations?.Count > 0)
-                {
-                    ApplyOccupationChanges(existingOccupations.FirstOrDefault(), capacity, paymentEndDate);
-                }
+                var occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
+                ApplyOccupationChanges(occupation, capacity, paymentEndDate, existingOccupations.ElementAt(0));
+                await _occupationRepository.UpdateAsync(existingOccupations.ElementAt(0), context);
             }
-
-            //if (!hasBeenInitialized && occupation != null && string.IsNullOrEmpty(occupation?.TariffId) && !string.IsNullOrWhiteSpace(tariffId))
-            //{
-            //    occupation.UnpaidRealOccupation = (occupation.UnpaidRealOccupation ?? 0) - 1;
-            //    occupation.Total = capacity != null ? capacity.Count : 0;
-            //    await _occupationRepository.UpdateAsync(occupation, context);
-
-            //    occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
-            //}
-
-            //ApplyOccupationChanges(occupation, capacity, paymentEndDate);
+            else
+            {
+                ApplyOccupationChanges(existingOccupations.First(), capacity, paymentEndDate);
+            }
 
             await context.SaveChangesAsync();
+        }
+
+        private async Task HandleTwoOccupations(
+            List<Occupations> existingOccupations,
+            bool oldStayHasntPayment,
+            bool newStayHasPayment,
+            Capacities? capacity,
+            DateTime? paymentEndDate,
+            BControlDbContext context)
+        {
+            var occupationWithTariff = existingOccupations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.TariffId));
+            var occupationWithoutTariff = existingOccupations.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.TariffId));
+
+            if (oldStayHasntPayment && newStayHasPayment)
+            {
+                ApplyOccupationChanges(occupationWithTariff, capacity, paymentEndDate, occupationWithoutTariff);
+                await _occupationRepository.UpdateRangeAsync(new List<Occupations> { occupationWithTariff, occupationWithoutTariff }, context);
+            }
+            else
+            {
+                ApplyOccupationChanges(occupationWithTariff, capacity, paymentEndDate);
+                await _occupationRepository.UpdateAsync(occupationWithTariff, context);
+            }
         }
 
         private async Task<Occupations?> CreateOccupationObj(string? tariffId, BControlDbContext context, DateTime date, string zoneId, string installationId)
@@ -97,6 +99,6 @@ namespace BlinkayOccupation.Application.Strategies
             return occupation;
         }
 
-        protected abstract void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null);
+        protected abstract void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null, Occupations? oldOccupation = null);
     }
 }

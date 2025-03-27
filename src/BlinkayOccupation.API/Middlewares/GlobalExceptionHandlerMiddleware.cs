@@ -45,11 +45,6 @@ namespace BlinkayOccupation.API.Middlewares
                 _logger.LogWarning(ex, "Stay not found.");
                 await HandleExceptionAsync(httpContext, ex, HttpStatusCode.NotFound);
             }
-            catch (ParkingRightsExistsInStayException ex)
-            {
-                _logger.LogWarning(ex, "Parking Right Ids already exist in current or other stay.");
-                await HandleExceptionAsync(httpContext, ex, HttpStatusCode.BadRequest);
-            }
             catch (ParkingRightsNoValidEndDateException ex)
             {
                 _logger.LogWarning(ex, "The Parking right has no validTo date defined.");

@@ -30,6 +30,7 @@ namespace BlinkayOccupation.Domain.Repositories.Stay
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Id cannot be null.", nameof(id));
 
             return await context.Stays
+                .Include(s => s.Installation)
                 .Include(s => s.StaysParkingRights)
                     .ThenInclude(spr => spr.ParkingRight)
                 .FirstOrDefaultAsync(s => s.Id == id);

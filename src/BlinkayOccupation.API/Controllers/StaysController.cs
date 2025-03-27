@@ -1,8 +1,11 @@
 using BlinkayOccupation.Application.Models;
 using BlinkayOccupation.Application.Services.Stay;
+using BlinkayOccupation.Domain.Models;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace BlinkayOccupation.API.Controllers;
 
@@ -30,41 +33,72 @@ public class StaysController : ControllerBase
         _updatevalidator = updatevalidator;
     }
 
-    [HttpPost("add")]
-    [AllowAnonymous]
+    [HttpPost]
     public async Task<IActionResult> Add([FromBody] AddStayRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var validationResult = await _validator.ValidateAsync(request);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult);
+            var requestMessage = JsonConvert.SerializeObject(request);
+            _logger.LogInformation("BlinkayOccupation-Add: request received: {request}", requestMessage);
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var validationResult = await _validator.ValidateAsync(request);
+            
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult);
+            }
+
+            var newId = await _stayService.AddStay(request);
+            _logger.LogInformation("BlinkayOccupation-Add: New stay with Id: {id} created correctly.", newId);
+
+            return Ok(newId);
         }
-
-        var newId = await _stayService.AddStay(request);
-
-        return Ok(newId);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BlinkayOccupation-Add:Something wrong happened when trying to insert an stay.");
+            return Problem(
+                title: "Internal Server Error",
+                detail: "An unexpected error occurred while processing your request.",
+                statusCode: StatusCodes.Status500InternalServerError
+            );
+        }
     }
 
-    [HttpPut("update")]
-    [AllowAnonymous]
+    [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateStayRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var validationResult = await _updatevalidator.ValidateAsync(request);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult);
+            var requestMessage = JsonConvert.SerializeObject(request);
+            _logger.LogInformation("BlinkayOccupation-Update: request received: {request}", requestMessage);
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var validationResult = await _updatevalidator.ValidateAsync(request);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult);
+            }
+
+            var updatedId = await _stayService.UpdateStay(request);
+            _logger.LogInformation("BlinkayOccupation-Update: Stay with Id: {id} updated correctly.", updatedId);
+
+            return Ok(updatedId);
+
         }
-
-        var updatedId = await _stayService.UpdateStay(request);
-
-        return Ok(updatedId);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BlinkayOccupation-Update:Something wrong happened when trying to update an stay.");
+            return Problem(
+                title: "Internal Server Error",
+                detail: "An unexpected error occurred while processing your request.",
+                statusCode: StatusCodes.Status500InternalServerError
+            );
+        }
     }
 }

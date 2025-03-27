@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BlinkayOccupation.Domain.Models;
+﻿namespace BlinkayOccupation.Domain.Models;
 
 public partial class Blobs
 {

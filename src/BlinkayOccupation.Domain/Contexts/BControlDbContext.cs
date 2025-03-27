@@ -4,6 +4,7 @@ using BlinkayOccupation.Domain.Interceptors;
 using BlinkayOccupation.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace BlinkayOccupation.Domain.Contexts;
 
@@ -20,7 +21,22 @@ public partial class BControlDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(_configuration.GetConnectionString("bControlDb"));
+        if (_configuration != null)
+        {
+            optionsBuilder.UseNpgsql(_configuration.GetConnectionString("bControlDb"));
+        }
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory) // Directorio donde corre el proceso
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
+                //.AddEnvironmentVariables()
+                .Build();
+
+            var connectionString = config.GetConnectionString("bControlDb");
+            optionsBuilder.UseNpgsql(connectionString);
+        }
+
         optionsBuilder.AddInterceptors(_auditInterceptor);
 
         string environmentVariable = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -83,6 +99,27 @@ public partial class BControlDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("fuzzystrmatch");
+
+        //modelBuilder.Ignore<Attachments>();
+        //modelBuilder.Ignore<Blobs>();
+        //modelBuilder.Ignore<Capacities>();
+        //modelBuilder.Ignore<ConsolidatedOccupation>();
+        //modelBuilder.Ignore<DataProtectionKeys>();
+        //modelBuilder.Ignore<Installations>();
+        //modelBuilder.Ignore<OccupancyStatus>();
+        //modelBuilder.Ignore<OccupancyStatusByZones>();
+        //modelBuilder.Ignore<OccupationEvents>();
+        //modelBuilder.Ignore<ParkingEvents>();
+        //modelBuilder.Ignore<Shapes>();
+        //modelBuilder.Ignore<Spaces>();
+        //modelBuilder.Ignore<StreetSections>();
+        //modelBuilder.Ignore<Streets>();
+        //modelBuilder.Ignore<Tariffs>();
+        //modelBuilder.Ignore<Users>();
+        //modelBuilder.Ignore<VehicleEvents>();
+        //modelBuilder.Ignore<VwParkingRights>();
+        //modelBuilder.Ignore<Zones>();
+
 
         modelBuilder.Entity<Attachments>(entity =>
         {

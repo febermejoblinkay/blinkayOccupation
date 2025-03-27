@@ -1,0 +1,77 @@
+     
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blinkayoccupation-api-pre
+spec:
+  selector: 
+    matchLabels:
+      app: blinkayoccupation-api-pre
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5 
+  template:
+    metadata:
+      labels:
+        app: blinkayoccupation-api-pre
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      serviceAccountName: default
+      containers:
+        - name: blinkayoccupation-api-pre
+          image: blinkay.azurecr.io/blinkayoccupationapi:v1
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "pre-usa"
+            - name: ENABLE_SWAGGER
+              value: "true"  
+          resources:
+            requests:
+              cpu: 200m
+              memory: 100Mi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: blinkayoccupation-api-pre
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: blinkayoccupation-api-pre
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 25
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blinkayoccupation-api-pre
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: 10.0.9.75
+spec:
+  selector:
+    app: blinkayoccupation-api-pre
+  ports:
+    - protocol: TCP
+      port: 82
+      targetPort: 8080
+  type: LoadBalancer   
+---
+  

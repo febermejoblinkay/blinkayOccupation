@@ -7,6 +7,7 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
     {
         Task AddAsync(Occupations occupation, BControlDbContext context);
         Task UpdateAsync(Occupations occupation, BControlDbContext context);
+        Task UpdateRangeAsync(List<Occupations> occupations, BControlDbContext context);
         Task<List<Occupations>?> GetOccupationsAvailable(DateTime date, string installationId, string zoneId, string? tariffId, BControlDbContext context);
     }
 }

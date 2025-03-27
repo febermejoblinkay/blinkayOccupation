@@ -1,0 +1,6 @@
+﻿*** To execute migrations, run the following command: 
+
+dotnet ef migrations add NewTablesForStays --project "C:\Repositorio\blinkayOccupation\src\BlinkayOccupation.Domain\BlinkayOccupation.Domain.csproj" --startup-project "C:\Repositorio\blinkayOccupation\src\BlinkayOccupation.API\BlinkayOccupation.API.csproj" --output-dir Migrations
+
+IMPORTANT: migrations is not working because it generates the migration script for all the database and not for the new tables. 
+           If we execute this migration into the db, it will drop all the tables and recreate the database. The script attached to this project is manually modified that's why it only inlcudes the new tables.

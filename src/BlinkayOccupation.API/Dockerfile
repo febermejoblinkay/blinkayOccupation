@@ -1,31 +1,33 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
+# Imagen base para la ejecución
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
-ENV ASPNETCORE_ENVIRONMENT=Development
-
-
-# This stage is used to build the service project
+# Imagen para compilar
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["BlinkayOccupation.API.csproj", "."]
-RUN dotnet restore "./BlinkayOccupation.API.csproj"
-COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./BlinkayOccupation.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# This stage is used to publish the service project to be copied to the final stage
+# Copiar los archivos de proyecto y restaurar dependencias
+COPY BlinkayOccupation.API/BlinkayOccupation.API.csproj BlinkayOccupation.API/
+COPY BlinkayOccupation.Application/BlinkayOccupation.Application.csproj BlinkayOccupation.Application/
+COPY BlinkayOccupation.Domain/BlinkayOccupation.Domain.csproj BlinkayOccupation.Domain/
+COPY BlinkayOccupation.Infrastructure/BlinkayOccupation.Infrastructure.csproj BlinkayOccupation.Infrastructure/
+
+RUN dotnet restore BlinkayOccupation.API/BlinkayOccupation.API.csproj
+
+# Copiar el resto del código y compilar
+COPY . .
+WORKDIR /src/BlinkayOccupation.API
+RUN dotnet build -c $BUILD_CONFIGURATION -o /app/build
+
+# Publicación
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./BlinkayOccupation.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
+# Imagen final
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .

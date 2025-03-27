@@ -12,11 +12,11 @@ namespace BlinkayOccupation.Application.Strategies
             ICapacitiesRepository capacitiesRepository)
         : base(occupationRepository, capacitiesRepository) { }
 
-        protected override void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null)
+        protected override void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null, Occupations? oldOccupation = null)
         {
             occupation.UnpaidRealOccupation = (occupation.UnpaidRealOccupation ?? 0) + 1;
             occupation.Total = capacity != null ? capacity.Count : 0;
-            //occupation.Total = (occupation.PaidRealOccupation ?? 0) + (occupation.UnpaidRealOccupation ?? 0);
+            
         }
     }
 }

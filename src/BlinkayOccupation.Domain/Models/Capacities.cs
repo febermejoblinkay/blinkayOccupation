@@ -23,7 +23,7 @@ public partial class Capacities
 
     public int Count { get; set; }
 
-    public string TariffId { get; set; } = null!;
+    public string? TariffId { get; set; }
 
     public DateTime Created { get; set; }
 

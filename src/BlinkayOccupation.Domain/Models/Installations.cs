@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using System;
 using System.Collections.Generic;
 
 namespace BlinkayOccupation.Domain.Models;
@@ -30,6 +31,16 @@ public partial class Installations
     public int ConfigurationParkingType { get; set; }
 
     public DateTime LastConsolidation { get; set; }
+
+    public DateTime DateTimeNow()
+    {
+        return DateTime.SpecifyKind(ToInstallationDate(DateTime.UtcNow), DateTimeKind.Utc);
+    }
+
+    private DateTime ToInstallationDate(DateTime dateTime)
+    {
+        return TimeZoneInfo.ConvertTimeBySystemTimeZoneId(dateTime, ConfigurationTimeZoneId);
+    }
 
     public virtual ICollection<Attachments> Attachments { get; set; } = new List<Attachments>();
 
