@@ -15,6 +15,15 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
             //await context.SaveChangesAsync();
         }
 
+        public async Task AddRangeAsync(List<Occupations> occupations, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (occupations?.Count == 0) throw new ArgumentException("Occupations list can not be null.", nameof(occupations));
+
+            context.Occupations.AddRangeAsync(occupations);
+            //await context.SaveChangesAsync();
+        }
+
         public async Task UpdateAsync(Occupations occupation, BControlDbContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -56,6 +65,35 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
                 !o.Deleted &&
                 (o.TariffId == tariffId || o.TariffId == null)
             ).ToListAsync();
+        }
+
+        public async Task<List<Occupations>?> GetExistingOccupationsByDate(
+            DateTime fromDate,
+            DateTime toDate,
+            string installationId,
+            string zoneId,
+            string? tariffId,
+            BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            if (fromDate == default ||
+                toDate == default ||
+                string.IsNullOrWhiteSpace(installationId) ||
+                string.IsNullOrWhiteSpace(zoneId))
+            {
+                throw new ArgumentException("Parameters are null or empty.");
+            }
+
+            return await context.Occupations
+                .Where(o =>
+                    o.Date.Value.Date >= fromDate.Date &&  
+                    o.Date.Value.Date <= toDate.Date &&
+                    o.InstallationId == installationId &&
+                    o.ZoneId == zoneId &&
+                    !o.Deleted &&
+                    (o.TariffId == tariffId || o.TariffId == null))
+                .ToListAsync();
         }
     }
 }

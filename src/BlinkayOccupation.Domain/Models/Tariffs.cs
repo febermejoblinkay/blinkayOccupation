@@ -18,6 +18,8 @@ public partial class Tariffs
     public TimeSpan ExitGracePeriod { get; set; }
 
     public bool IsDefault { get; set; }
+    
+    public bool? PaymentApplyAllDay { get; set; }
 
     public List<string>? VehicleMakes { get; set; }
 

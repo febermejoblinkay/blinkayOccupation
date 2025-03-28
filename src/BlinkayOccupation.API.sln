@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlinkayOccupation.Domain", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlinkayOccupation.Infrastructure", "BlinkayOccupation.Infrastructure\BlinkayOccupation.Infrastructure.csproj", "{F7CC0DA3-8D44-E438-5F2C-6004BB3384F2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlinkayOccupation.PaymentsWorker", "BlinkayOccupation.PaymentsWorker\BlinkayOccupation.PaymentsWorker.csproj", "{71B7631D-22BE-425F-B7D9-74FAB49BB074}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{F7CC0DA3-8D44-E438-5F2C-6004BB3384F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F7CC0DA3-8D44-E438-5F2C-6004BB3384F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F7CC0DA3-8D44-E438-5F2C-6004BB3384F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71B7631D-22BE-425F-B7D9-74FAB49BB074}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71B7631D-22BE-425F-B7D9-74FAB49BB074}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71B7631D-22BE-425F-B7D9-74FAB49BB074}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71B7631D-22BE-425F-B7D9-74FAB49BB074}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -9,5 +9,13 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
         Task UpdateAsync(Occupations occupation, BControlDbContext context);
         Task UpdateRangeAsync(List<Occupations> occupations, BControlDbContext context);
         Task<List<Occupations>?> GetOccupationsAvailable(DateTime date, string installationId, string zoneId, string? tariffId, BControlDbContext context);
+        Task<List<Occupations>?> GetExistingOccupationsByDate(
+            DateTime fromDate,
+            DateTime toDate,
+            string installationId,
+            string zoneId,
+            string? tariffId,
+            BControlDbContext context);
+        Task AddRangeAsync(List<Occupations> occupations, BControlDbContext context);
     }
 }

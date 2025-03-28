@@ -25,6 +25,7 @@ public partial class BControlDbContext : DbContext
         {
             optionsBuilder.UseNpgsql(_configuration.GetConnectionString("bControlDb"));
         }
+        else
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory) // Directorio donde corre el proceso
@@ -41,7 +42,7 @@ public partial class BControlDbContext : DbContext
 
         string environmentVariable = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
-        if (environmentVariable == "pre-usa")
+        if (environmentVariable == "pre-usa")//BORRAR       
         {
             optionsBuilder.LogTo(Console.WriteLine);
             optionsBuilder.EnableSensitiveDataLogging(true);

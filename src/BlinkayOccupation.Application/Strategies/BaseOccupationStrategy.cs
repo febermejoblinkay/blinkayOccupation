@@ -21,10 +21,9 @@ namespace BlinkayOccupation.Application.Strategies
             string? tariffId,
             string oldState,
             string newState,
-            BControlDbContext context,
-            DateTime? paymentEndDate = null)
+            BControlDbContext context)
         {
-            if (stay.EntryEvent == null && stay.ExitEvent == null && !paymentEndDate.HasValue)
+            if (stay.EntryEvent == null && stay.ExitEvent == null && stay is null)
                 return;
 
             var date = DateTime.UtcNow.Date;
@@ -38,32 +37,32 @@ namespace BlinkayOccupation.Application.Strategies
             if (existingOccupations is null || !existingOccupations.Any())
             {
                 var occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
-                ApplyOccupationChanges(occupation, capacity, paymentEndDate);
+                ApplyOccupationChanges(stay, occupation, capacity);
             }
             else if (existingOccupations.Count == 2)
             {
-                await HandleTwoOccupations(existingOccupations, oldStayHasntPayment, newStayHasPayment, capacity, paymentEndDate, context);
+                await HandleTwoOccupations(stay, existingOccupations, oldStayHasntPayment, newStayHasPayment, capacity, context);
             }
             else if (existingOccupations.Count == 1 && oldStayHasntPayment && newStayHasPayment)
             {
                 var occupation = await CreateOccupationObj(tariffId, context, date, zoneId, installationId);
-                ApplyOccupationChanges(occupation, capacity, paymentEndDate, existingOccupations.ElementAt(0));
+                ApplyOccupationChanges(stay, occupation, capacity, existingOccupations.ElementAt(0));
                 await _occupationRepository.UpdateAsync(existingOccupations.ElementAt(0), context);
             }
             else
             {
-                ApplyOccupationChanges(existingOccupations.First(), capacity, paymentEndDate);
+                ApplyOccupationChanges(stay, existingOccupations.First(), capacity);
             }
 
             await context.SaveChangesAsync();
         }
 
         private async Task HandleTwoOccupations(
+            Stays stay,
             List<Occupations> existingOccupations,
             bool oldStayHasntPayment,
             bool newStayHasPayment,
             Capacities? capacity,
-            DateTime? paymentEndDate,
             BControlDbContext context)
         {
             var occupationWithTariff = existingOccupations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.TariffId));
@@ -71,12 +70,12 @@ namespace BlinkayOccupation.Application.Strategies
 
             if (oldStayHasntPayment && newStayHasPayment)
             {
-                ApplyOccupationChanges(occupationWithTariff, capacity, paymentEndDate, occupationWithoutTariff);
+                ApplyOccupationChanges(stay, occupationWithTariff, capacity, occupationWithoutTariff);
                 await _occupationRepository.UpdateRangeAsync(new List<Occupations> { occupationWithTariff, occupationWithoutTariff }, context);
             }
             else
             {
-                ApplyOccupationChanges(occupationWithTariff, capacity, paymentEndDate);
+                ApplyOccupationChanges(stay, occupationWithTariff, capacity);
                 await _occupationRepository.UpdateAsync(occupationWithTariff, context);
             }
         }
@@ -99,6 +98,6 @@ namespace BlinkayOccupation.Application.Strategies
             return occupation;
         }
 
-        protected abstract void ApplyOccupationChanges(Occupations occupation, Capacities? capacity, DateTime? paymentEndDate = null, Occupations? oldOccupation = null);
+        protected abstract void ApplyOccupationChanges(Stays stay, Occupations occupation, Capacities? capacity, Occupations? oldOccupation = null);
     }
 }

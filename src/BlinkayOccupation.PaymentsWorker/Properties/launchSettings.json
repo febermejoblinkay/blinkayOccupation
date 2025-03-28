@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "BlinkayOccupation.PaymentsWorker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "pre-usa"
+      },
+      "dotnetRunMessages": true
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "pre-usa"
+      },
+      "dotnetRunMessages": true
+    }
+  }
+}

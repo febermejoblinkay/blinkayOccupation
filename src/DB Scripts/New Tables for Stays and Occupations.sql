@@ -163,3 +163,68 @@ CREATE INDEX IF NOT EXISTS "IX_occupations_Updated"
     ON preprod.occupations USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
+	
+-- Agregar nueva columna a la tabla preprod.tariffs
+ALTER TABLE preprod.tariffs 
+ADD COLUMN "PaymentApplyAllDay" BOOLEAN DEFAULT FALSE;
+
+-- Permitir valores nulos en la columna TariffId de la tabla preprod.capacities
+ALTER TABLE preprod.capacities 
+ALTER COLUMN "TariffId" DROP NOT NULL;
+
+
+-- tabla para snapshots
+CREATE TABLE IF NOT EXISTS preprod.occupations_snapshots
+(
+    "Id" text COLLATE pg_catalog."default" NOT NULL,
+	"OccupationDate" timestamp with time zone NULL,
+	"SnapshotDate" timestamp with time zone NULL,
+	"InstallationId" text COLLATE pg_catalog."default" NULL,
+    "ZoneId" text COLLATE pg_catalog."default" NULL,
+	"TariffId" text COLLATE pg_catalog."default" NULL,
+	"Paid_Real_Occupation" integer NULL DEFAULT 0,
+	"Unpaid_Real_Occupation" integer NULL DEFAULT 0,
+	"Paid_Occupation" integer NULL DEFAULT 0,
+	"Total" integer NULL DEFAULT 0,
+    "Created" timestamp with time zone NOT NULL DEFAULT '-infinity'::timestamp with time zone,
+    "Deleted" boolean NOT NULL DEFAULT false,
+	"Updated" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_occupations_snapshot" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_occupations_snapshot_installations_InstallationId" FOREIGN KEY ("InstallationId")
+        REFERENCES preprod.installations ("Id") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT "FK_occupations_snapshot_zones_ZoneId" FOREIGN KEY ("ZoneId")
+        REFERENCES preprod.zones ("Id") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT "FK_occupations_snapshot_tariffs_TariffId" FOREIGN KEY ("TariffId")
+        REFERENCES preprod.tariffs ("Id") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE		
+)
+
+CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_SnapshotDate"
+    ON preprod.occupations_snapshots USING btree
+    ("SnapshotDate" ASC NULLS LAST)
+    TABLESPACE pg_default;	
+	
+CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_OccupationDate"
+    ON preprod.occupations_snapshots USING btree
+    ("OccupationDate" ASC NULLS LAST)
+    TABLESPACE pg_default;		
+
+CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_InstallationId"
+    ON preprod.occupations_snapshots USING btree
+    ("InstallationId" ASC NULLS LAST)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_ZoneId"
+    ON preprod.occupations_snapshots USING btree
+    ("ZoneId" ASC NULLS LAST)
+    TABLESPACE pg_default;
+	
+CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_Updated"
+    ON preprod.occupations_snapshots USING btree
+    ("Updated" ASC NULLS LAST)
+    TABLESPACE pg_default;	

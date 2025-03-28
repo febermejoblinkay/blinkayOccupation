@@ -8,5 +8,6 @@ namespace BlinkayOccupation.Domain.Repositories.Stay
         Task AddAsync(Stays stay, BControlDbContext context);
         Task UpdateAsync(Stays stay, BControlDbContext context);
         Task<Stays> GetByIdAsync(string id, BControlDbContext context);
+        Task<List<Stays>> GetStaysToProcessPaymentsAsync(BControlDbContext context);
     }
 }

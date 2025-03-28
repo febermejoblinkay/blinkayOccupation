@@ -1,7 +1,9 @@
-﻿using BlinkayOccupation.Domain.Contexts;
+﻿using BlinkayOccupation.Application.Services.Stay;
+using BlinkayOccupation.Domain.Contexts;
 using BlinkayOccupation.Domain.Models;
 using BlinkayOccupation.Domain.Repositories.Capacity;
 using BlinkayOccupation.Domain.Repositories.Occupation;
+using Microsoft.Extensions.Logging;
 
 namespace BlinkayOccupation.Application.Strategies
 {
@@ -9,9 +11,12 @@ namespace BlinkayOccupation.Application.Strategies
     {
         private readonly Dictionary<(string, string), IOccupationStrategy> _strategies;
 
+        private readonly ILogger<OccupationStrategyFactory> _logger;
+
         public OccupationStrategyFactory(
             IOccupationRepository occupationRepository,
-            ICapacitiesRepository capacitiesRepository)
+            ICapacitiesRepository capacitiesRepository,
+            ILogger<OccupationStrategyFactory> logger)
         {
             _strategies = new Dictionary<(string, string), IOccupationStrategy>
             {
@@ -29,13 +34,26 @@ namespace BlinkayOccupation.Application.Strategies
                 { ("E,P,NS", "E,P,S"), new EPNS_to_EPS_Strategy(occupationRepository, capacitiesRepository) },
                 { ("NE,P,NS", "E,P,NS"), new NEPNS_to_EPNS_Strategy(occupationRepository, capacitiesRepository) }
             };
+            _logger = logger;
         }
 
         public IOccupationStrategy GetStrategy(string oldState, string newState)
         {
             if (!_strategies.TryGetValue((oldState, newState), out var strategy))
             {
-                return new ImpossibleStrategy(oldState, newState);
+                var oldStaySplitted = oldState.Split(',');
+                var isNewStay = newState.Equals("N");
+                if (oldStaySplitted.Length == 3 && isNewStay &&
+                    (oldStaySplitted.SequenceEqual(new[] { "NE", "NP", "S" }) ||
+                     oldStaySplitted.SequenceEqual(new[] { "E", "NP", "S" })))
+                {
+                    return null;
+                }
+                else
+                {
+                    _logger.LogWarning("OccupationStrategy: Transition '{old}'-> '{new}' is impossible according to rules defined in matrix.", oldState, newState);
+                    return new ImpossibleStrategy(oldState, newState);
+                }
             }
 
             return strategy;
@@ -58,12 +76,11 @@ namespace BlinkayOccupation.Application.Strategies
             string? tariffId,
             string oldState,
             string newState,
-            BControlDbContext context,
-            DateTime? paymentEndDate = null
+            BControlDbContext context
         )
         {
             throw new InvalidOperationException(
-                $"Transition '{_old}' -> '{_new}' is impossible according to matrix."
+                $"Transition '{_old}' -> '{_new}' is impossible according to rules defined in matrix."
             );
         }
     }

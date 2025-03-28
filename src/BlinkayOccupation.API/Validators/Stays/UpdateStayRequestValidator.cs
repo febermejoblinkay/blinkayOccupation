@@ -7,37 +7,56 @@ namespace BlinkayOccupation.API.Validators.Stays
     {
         public UpdateStayRequestValidator()
         {
-            RuleFor(x => x.StayId).NotNull().NotEmpty().WithMessage("StayId should not be null or empty");
+            RuleFor(x => x.StayId)
+                .NotEmpty()
+                .WithMessage("StayId should not be null or empty");
+
             RuleFor(x => x.EntryDate)
-                .Must(date => !date.HasValue || DateTime.TryParse(date.ToString(), out _))
-                .WithMessage("The EntryDate should be a valid date.")
-                .When(x => x.EntryDate.HasValue)
+                .Must(date => date != DateTime.MinValue)
+                .WithMessage("EntryDate is not valid.")
+                .When(x => x.EntryDate.HasValue);
+
+            RuleFor(x => x.ExitDate)
+                .Must(date => date != DateTime.MinValue)
+                .WithMessage("ExitDate is not valid.")
+                .When(x => x.ExitDate.HasValue);
+
+            RuleFor(x => x.EntryDate)
                 .NotNull()
                 .WithMessage("EntryDate is required when EntryEventId is present.")
                 .When(x => !string.IsNullOrEmpty(x.EntryEventId));
 
+            RuleFor(x => x.EntryEventId)
+                .NotEmpty()
+                .WithMessage("EntryEventId is required when EntryDate is present.")
+                .When(x => x.EntryDate.HasValue);
+
             RuleFor(x => x.ExitDate)
-                .Must(date => !date.HasValue || DateTime.TryParse(date.ToString(), out _))
-                .WithMessage("The ExitDate should be a valid date.")
-                .When(x => x.ExitDate.HasValue)
                 .NotNull()
                 .WithMessage("ExitDate is required when ExitEventId is present.")
                 .When(x => !string.IsNullOrEmpty(x.ExitEventId));
+
+            RuleFor(x => x.ExitEventId)
+                .NotEmpty()
+                .WithMessage("ExitEventId is required when ExitDate is present.")
+                .When(x => x.ExitDate.HasValue);
+
             When(x => x.EntryDate.HasValue && x.ExitDate.HasValue, () =>
             {
                 RuleFor(x => x.EntryDate.Value)
                     .LessThan(x => x.ExitDate.Value)
                     .WithMessage("EntryDate should be smaller than ExitDate.");
+            });
 
-                RuleFor(x => x.ExitDate.Value)
-                    .GreaterThan(x => x.EntryDate.Value)
-                    .WithMessage("ExitDate should be greater than EntryDate.");
-            });
-            When(x => x.ParkingRightIds?.Count > 0, () =>
-            {
-                RuleFor(x => x.ParkingRightIds).NotEmpty().NotNull().WithMessage("ParkingRightIds are in incorrect format");
-            });
-            RuleFor(x => x.CaseId).Must(x => x.HasValue && x.Value != 0).WithMessage("CaseId should not be null or 0");
+            RuleFor(x => x.ParkingRightIds)
+                .NotEmpty()
+                .WithMessage("ParkingRightIds should not be empty when provided.")
+                .When(x => x.ParkingRightIds?.Count > 0);
+
+            RuleFor(x => x.CaseId)
+                .NotNull()
+                .GreaterThan(0)
+                .WithMessage("CaseId should not be null or 0");
         }
     }
 }

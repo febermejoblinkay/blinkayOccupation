@@ -10,8 +10,7 @@ namespace BlinkayOccupation.Application.Strategies
             string? tariffId,
             string oldState,
             string newState,
-            BControlDbContext context,
-            DateTime? paymentEndDate = null
+            BControlDbContext context
         );
     }
 }

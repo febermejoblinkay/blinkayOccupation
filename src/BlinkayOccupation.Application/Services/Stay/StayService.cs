@@ -62,13 +62,14 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var existingPkRights = await GetExistingParkingRightsAsync(request.ParkingRightIds);
 
                 var installation = await GetInstallationAsync(request.InstallationId);
+                var localDateNow = installation.DateTimeNow();
                 var zone = await GetZoneAsync(request.ZoneId);
 
                 DateTime? minInitValidPkDate, maxEndValidPkDate;
                 GetMinMaxPaymentsDate(existingPkRights, out minInitValidPkDate, out maxEndValidPkDate);
 
                 var stay = CreateStay(request, existingPkEvents, installation, zone, minInitValidPkDate, maxEndValidPkDate);
-
+                stay.Installation = installation;
                 await _staysRepository.AddAsync(stay, _unitOfWork.Context);
 
                 await HandleStayParkingRightsAsync(stay, existingPkRights);
@@ -76,17 +77,16 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var oldHasPayment = existingPkRights?.Count > 0;
                 var oldStateObj = StayState.FromStay(stay, oldHasPayment);
                 var oldState = oldStateObj.ToString();
-
-                //los inserts siempre van a ser: new stay => N
                 var newState = "N";
                 var strategy = _occupationStrategyFactory.GetStrategy(oldState, newState);
-                DateTime? paymentEndDate = null;
-                paymentEndDate = existingPkRights?.FirstOrDefault(x => DateTime.UtcNow < x.ValidTo)?.ValidTo;
+                var tariffId = GetTariffId(existingPkRights, stay, oldStateObj, localDateNow);
 
-                var tariffId = GetTariffId(existingPkRights, stay, oldStateObj);
+                if (strategy is not null)
+                {
+                    await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context);
+                    _logger.LogInformation("BlinkayOccupation-AddStay: Strategy:{strategy} for state:{state}, executed correctly", strategy.ToString(), string.Concat(oldState, "-", newState));
+                }
 
-                await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context, paymentEndDate);
-                _logger.LogInformation("BlinkayOccupation-AddStay: Strategy:{strategy} for state:{state}, executed correctly", strategy.ToString(), string.Concat(oldState, "-", newState));
                 await _unitOfWork.CommitTransactionAsync();
 
                 return stay.Id;
@@ -108,6 +108,7 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var stay = await _staysRepository.GetByIdAsync(request.StayId, _unitOfWork.Context);
                 if (stay == null) throw new StayNotFoundException("Stay not found.");
 
+                var localDateNow = stay.Installation.DateTimeNow();
                 bool oldHasPayment = await CheckIfStayHadPayment(request, stay);
                 var oldStateObj = StayState.FromStay(stay, oldHasPayment);
                 string oldState = oldStateObj.ToString();
@@ -136,32 +137,11 @@ namespace BlinkayOccupation.Application.Services.Stay
                 var newStateObj = StayState.FromStay(stay, newHasPayment);
                 var newState = newStateObj.ToString();
                 var strategy = _occupationStrategyFactory.GetStrategy(oldState, newState);
+                var tariffId = GetTariffId(existingPkRights, stay, oldStateObj.HasPayment ? oldStateObj : newStateObj, localDateNow);
 
-                //ESTO NO SERÌA NECESARIO
-                //DateTime? paymentEndDate = null;
-                //if (request.ExitDate.HasValue || existingPkRights?.Count > 0)
-                //{
-                //    if (request.ExitDate.HasValue || stay.ExitDate.HasValue)
-                //    {
-                //        var exitDate = request.ExitDate ?? stay.ExitDate;
-                //        paymentEndDate = existingPkRights.FirstOrDefault(x => exitDate.Value <= x.ValidTo)?.ValidTo;
-                //    }
-                //    else if (request.EntryDate.HasValue || stay.EntryDate.HasValue)
-                //    {
-                //        var entryDate = request.EntryDate ?? stay.EntryDate;
-                //        paymentEndDate = existingPkRights.FirstOrDefault(x => entryDate.Value >= x.ValidFrom && entryDate.Value <= x.ValidTo)?.ValidTo;
-                //    }
-                //    else
-                //    {
-                //        throw new ParkingRightsNoValidEndDateException("The Parking right has no validTo date defined.");
-                //    }
-                //}
-
-                var tariffId = GetTariffId(existingPkRights, stay, oldStateObj.HasPayment ? oldStateObj : newStateObj);
-
-                await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context, maxEndValidPkDate);
+                await strategy.ExecuteAsync(stay, tariffId, oldState, newState, _unitOfWork.Context);
                 _logger.LogInformation("BlinkayOccupation-UpdateStay: Strategy:{strategy} for state:{state}, executed correctly", strategy.ToString(), string.Concat(oldState, "-", newState));
-                
+
                 await _unitOfWork.CommitTransactionAsync();
 
                 return stay.Id;
@@ -195,7 +175,7 @@ namespace BlinkayOccupation.Application.Services.Stay
             return TimeZoneInfo.ConvertTimeBySystemTimeZoneId(dateTime, configTimeZoneId);
         }
 
-        private string? GetTariffId(List<ParkingRights>? existingPkRights, Stays stay, StayState stateObj)
+        private string? GetTariffId(List<ParkingRights>? existingPkRights, Stays stay, StayState stateObj, DateTime localDateNow)
         {
             if (stateObj.HasPayment && stateObj.HasEntry && stateObj.HasExit)
             {
@@ -211,7 +191,7 @@ namespace BlinkayOccupation.Application.Services.Stay
             }
             else
             {
-                return existingPkRights?.FirstOrDefault(x => DateTime.UtcNow < x.ValidTo)?.TariffId;
+                return existingPkRights?.FirstOrDefault(x => localDateNow < x.ValidTo)?.TariffId;
             }
         }
 
@@ -285,9 +265,9 @@ namespace BlinkayOccupation.Application.Services.Stay
 
         private async Task<List<ParkingRights>> GetExistingParkingRightsAsync(List<string> parkingRightIds)
         {
-            if (parkingRightIds.All(x => !string.IsNullOrWhiteSpace(x)) && parkingRightIds?.Count > 0)
+            if (parkingRightIds != null && parkingRightIds.All(x => !string.IsNullOrWhiteSpace(x)) && parkingRightIds?.Count > 0)
             {
-                var rights = await _parkingRightsRepository.GetByIdsAsync(parkingRightIds, _unitOfWork.Context);
+                var rights = await _parkingRightsRepository.GetByExternalIdsAsync(parkingRightIds, _unitOfWork.Context);
                 if (rights?.Count == 0)
                 {
                     throw new ParkingRightsNotFoundException("No parking rights found.");
