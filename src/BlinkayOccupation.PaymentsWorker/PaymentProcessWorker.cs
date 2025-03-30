@@ -1,54 +1,63 @@
 ﻿using BlinkayOccupation.Application.Services.StayPayment;
-using BlinkayOccupation.PaymentsWorker.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace BlinkayOccupation.PaymentsWorker
 {
     public class PaymentProcessWorker : BackgroundService
     {
         private readonly ILogger<PaymentProcessWorker> _logger;
-        private string _hostname;
         private string _environment;
-        private AppSettings _appSettings;
 
         private readonly IStayPaymentService _stayPaymentService;
 
         public PaymentProcessWorker(
             ILogger<PaymentProcessWorker> logger,
-            IOptions<AppSettings> appSettings,
             IStayPaymentService stayPaymentService)
         {
-            _hostname = Environment.GetEnvironmentVariable("HOSTNAME");
             _environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             _logger = logger;
-            _appSettings = appSettings.Value;
             _stayPaymentService = stayPaymentService;
         }
 
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("PaymentProcessWorker-{environment}: {hostname}::Start", _environment, _hostname);
+            _logger.LogInformation("PaymentProcessWorker-{environment}:Start", _environment);
 
-            var paymentsTask = ProcessInitEndPaymentsEachMinute(stoppingToken);
-            var snapshotTask = ProcessSnapshot(stoppingToken);
-            var cloneTask = CloneRealOccupation(stoppingToken);
+            try
+            {
+                var paymentTask = ProcessInitEndPaymentsEachMinute(stoppingToken);
+                var snapshotTask = ProcessSnapshot(stoppingToken);
+                var cloneTask = CloneRealOccupationForAllInstallations(stoppingToken);
 
-            //await Task.WhenAll(paymentsTask, snapshotTask, cloneTask);
-            await Task.WhenAll(paymentsTask);
+                await Task.WhenAll(paymentTask, snapshotTask, cloneTask);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PaymentProcessWorker-{environment}:An error has occured when processing worker.", _environment);
+            }
         }
 
         private async Task ProcessInitEndPaymentsEachMinute(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
-                _logger.LogInformation("PaymentProcessWorker-{environment}: ");
-                await _stayPaymentService.ProcessInitEndPaymentStay();
-                DateTime nextMinute = DateTime.Now.AddMinutes(1);
-                nextMinute = new DateTime(nextMinute.Year, nextMinute.Month, nextMinute.Day, nextMinute.Hour, nextMinute.Minute, 0);
-                TimeSpan delay = nextMinute - DateTime.Now;
-                await Task.Delay(delay, token);
+                try
+                {
+                    _logger.LogInformation("PaymentProcessWorker-{environment}: Processing payments...", _environment);
+                    await _stayPaymentService.ProcessInitEndPaymentStay();
+
+                    DateTime nextMinute = DateTime.Now.AddMinutes(1);
+                    nextMinute = new DateTime(nextMinute.Year, nextMinute.Month, nextMinute.Day, nextMinute.Hour, nextMinute.Minute, 0);
+                    TimeSpan delay = nextMinute - DateTime.Now;
+                    _logger.LogInformation("Next payment task scheduled for: {nextMinute}", nextMinute);
+
+                    await Task.Delay(delay, token);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "An error has occured when trying to process init and end payment data in {environment}", _environment);
+                }
             }
         }
 
@@ -56,30 +65,63 @@ namespace BlinkayOccupation.PaymentsWorker
         {
             while (!token.IsCancellationRequested)
             {
-                DateTime ahora = DateTime.Now;
-                if (ahora.Minute == 15)
+                try
                 {
-                }
+                    DateTime now = DateTime.Now;
+                    _logger.LogInformation("PaymentProcessWorker-{environment}: Processing snapshot... Actual time: {now}", _environment, now);
 
-                DateTime nextRun = DateTime.Now.AddHours(1);
-                nextRun = new DateTime(nextRun.Year, nextRun.Month, nextRun.Day, nextRun.Hour, 15, 0);
-                TimeSpan delay = nextRun - DateTime.Now;
-                await Task.Delay(delay, token);
+                    await _stayPaymentService.ProcessOccupationsSnapshot();
+
+                    _logger.LogInformation("Next snapshot task scheduled in 15 minutes...");
+                    await Task.Delay(TimeSpan.FromMinutes(15), token);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "An error has occured when trying to take snapshot of occupation in {environment}", _environment);
+                }
             }
         }
 
-        private async Task CloneRealOccupation(CancellationToken token)
+        private async Task CloneRealOccupationForAllInstallations(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
-                DateTime ahora = DateTime.Now;
-                if (ahora.Hour == 0 && ahora.Minute == 0)
+                try
                 {
-                }
+                    var installations = await _stayPaymentService.GetAllInstallationsAsync();
 
-                DateTime nextRun = DateTime.Today.AddDays(1);
-                TimeSpan delay = nextRun - DateTime.Now;
-                await Task.Delay(delay, token);
+                    var tasks = new List<Task>();
+
+                    foreach (var installation in installations)
+                    {
+                        tasks.Add(Task.Run(async () =>
+                        {
+                            DateTime now = installation.DateTimeNow();
+                            DateTime tomorrow = now.Date.AddDays(1);
+                            DateTime nextRunTime = tomorrow.AddMinutes(5);
+
+                            if (nextRunTime < now)
+                            {
+                                nextRunTime = nextRunTime.AddDays(1);
+                            }
+
+                            TimeSpan delay = nextRunTime - now;
+
+                            _logger.LogInformation("Next real occupation clone task for Installation {installationId} scheduled for: {nextMidnight}", installation.Id, nextRunTime);
+
+                            await Task.Delay(delay, token);
+
+                            _logger.LogInformation("Clonando ocupación real para la instalación {installationId}...", installation.Id);
+                            await _stayPaymentService.CloneOccupationForInstallation(installation);
+                        }));
+                    }
+
+                    await Task.WhenAll(tasks);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "An error has occured when trying to clone real occupation in {environment}", _environment);
+                }
             }
         }
     }

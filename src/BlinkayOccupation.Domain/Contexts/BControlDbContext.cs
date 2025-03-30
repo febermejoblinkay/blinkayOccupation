@@ -71,6 +71,8 @@ public partial class BControlDbContext : DbContext
 
     public virtual DbSet<Occupations> Occupations { get; set; }
 
+    public virtual DbSet<OccupationsSnapshots> OccupationsSnapshots { get; set; }
+
     public virtual DbSet<ParkingEvents> ParkingEvents { get; set; }
 
     public virtual DbSet<ParkingRights> ParkingRights { get; set; }
@@ -366,6 +368,48 @@ public partial class BControlDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(d => d.Zone).WithMany(p => p.Occupations)
+                .HasForeignKey(d => d.ZoneId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OccupationsSnapshots>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_occupations_snapshot");
+
+            entity.ToTable("occupations_snapshots", "preprod");
+
+            entity.HasIndex(e => e.InstallationId, "IX_occupations_snapshot_InstallationId");
+
+            entity.HasIndex(e => e.OccupationDate, "IX_occupations_snapshot_OccupationDate");
+
+            entity.HasIndex(e => e.SnapshotDate, "IX_occupations_snapshot_SnapshotDate");
+
+            entity.HasIndex(e => e.Updated, "IX_occupations_snapshot_Updated");
+
+            entity.HasIndex(e => e.ZoneId, "IX_occupations_snapshot_ZoneId");
+
+            entity.Property(e => e.Created).HasDefaultValueSql("'-infinity'::timestamp with time zone");
+            entity.Property(e => e.Deleted).HasDefaultValue(false);
+            entity.Property(e => e.PaidOccupation)
+                .HasDefaultValue(0)
+                .HasColumnName("Paid_Occupation");
+            entity.Property(e => e.PaidRealOccupation)
+                .HasDefaultValue(0)
+                .HasColumnName("Paid_Real_Occupation");
+            entity.Property(e => e.Total).HasDefaultValue(0);
+            entity.Property(e => e.UnpaidRealOccupation)
+                .HasDefaultValue(0)
+                .HasColumnName("Unpaid_Real_Occupation");
+
+            entity.HasOne(d => d.Installation).WithMany(p => p.OccupationsSnapshots)
+                .HasForeignKey(d => d.InstallationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Tariff).WithMany(p => p.OccupationsSnapshots)
+                .HasForeignKey(d => d.TariffId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Zone).WithMany(p => p.OccupationsSnapshots)
                 .HasForeignKey(d => d.ZoneId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

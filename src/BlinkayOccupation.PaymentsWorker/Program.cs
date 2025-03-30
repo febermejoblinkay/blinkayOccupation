@@ -1,10 +1,11 @@
 ﻿using BlinkayOccupation.Application.Services.StayPayment;
 using BlinkayOccupation.Domain.Contexts;
 using BlinkayOccupation.Domain.Repositories.Capacity;
+using BlinkayOccupation.Domain.Repositories.Installation;
 using BlinkayOccupation.Domain.Repositories.Occupation;
+using BlinkayOccupation.Domain.Repositories.OccupationSnapshot;
 using BlinkayOccupation.Domain.Repositories.Stay;
 using BlinkayOccupation.Domain.UnitOfWork;
-using BlinkayOccupation.PaymentsWorker.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,6 @@ namespace BlinkayOccupation.PaymentsWorker
                 .ConfigureServices((hostContext, services) =>
                 {
                     IConfiguration configuration = hostContext.Configuration;
-                    services.Configure<AppSettings>(configuration.GetSection(nameof(AppSettings)));
                     services.AddDbContextFactory<BControlDbContext>(options =>
                     {
                         var connectionString = configuration.GetConnectionString("bControlDb");
@@ -37,10 +37,12 @@ namespace BlinkayOccupation.PaymentsWorker
                     services.AddScoped<IStaysRepository, StaysRepository>();
                     services.AddScoped<IOccupationRepository, OccupationRepository>();
                     services.AddScoped<ICapacitiesRepository, CapacitiesRepository>();
+                    services.AddScoped<IOccupationSnapshotRepository, OccupationSnapshotRepository>();
+                    services.AddScoped<IInstallationRepository, InstallationRepository>();
                     services.AddScoped<IStayPaymentService, StayPaymentService>();
                     services.AddHostedService<PaymentProcessWorker>();
                 })
-                //.UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration))
+                .UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration))
                 .Build();
 
             host.Run();

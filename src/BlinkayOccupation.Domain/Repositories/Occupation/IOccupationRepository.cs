@@ -17,5 +17,8 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
             string? tariffId,
             BControlDbContext context);
         Task AddRangeAsync(List<Occupations> occupations, BControlDbContext context);
+        Task<List<Occupations?>> GetByDate(DateTime date, BControlDbContext context);
+        Task<List<Occupations>> GetOccupationsByDateAndInsId(DateTime date, string insId, BControlDbContext context);
+        Task<List<Occupations>> GetOccupationsByFiltersAsync(List<Tuple<DateTime?, string, string, string?>> filters, BControlDbContext context);
     }
 }

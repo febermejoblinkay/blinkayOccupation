@@ -44,6 +44,8 @@ public partial class Zones
     public virtual Installations Installation { get; set; } = null!;
 
     public virtual ICollection<Occupations> Occupations { get; set; } = new List<Occupations>();
+    
+    public virtual ICollection<OccupationsSnapshots> OccupationsSnapshots { get; set; } = new List<OccupationsSnapshots>();
 
     public virtual ICollection<ParkingEvents> ParkingEvents { get; set; } = new List<ParkingEvents>();
 

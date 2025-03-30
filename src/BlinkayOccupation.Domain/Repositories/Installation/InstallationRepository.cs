@@ -12,5 +12,12 @@ namespace BlinkayOccupation.Domain.Repositories.Installation
 
             return await context.Installations.FirstOrDefaultAsync(x => x.Id == id);
         }
+
+        public async Task<List<Models.Installations>> GetAllAsync(BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            return await context.Installations.ToListAsync();
+        }
     }
 }
