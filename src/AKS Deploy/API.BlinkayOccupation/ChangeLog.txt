@@ -1,4 +1,8 @@
+v3 --> (31-03-2025)
+	1) New endpoint for receiving camera events.
 
+v2 --> (26-03-2025)
+	1) Minor fixes.
 
 v1 --> (26-03-2025)
 	1) Initial Version

@@ -95,4 +95,20 @@
         {
         }
     }
+
+    public class LastReceivedEventDateException : Exception
+    {
+        public LastReceivedEventDateException() : base("Last received event date can't be before internal event date.")
+        {
+        }
+
+        public LastReceivedEventDateException(string message) : base(message)
+        {
+        }
+
+        public LastReceivedEventDateException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
 }

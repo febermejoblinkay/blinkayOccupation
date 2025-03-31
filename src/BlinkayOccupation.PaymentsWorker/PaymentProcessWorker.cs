@@ -1,6 +1,8 @@
 ﻿using BlinkayOccupation.Application.Services.StayPayment;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace BlinkayOccupation.PaymentsWorker
 {
@@ -9,15 +11,16 @@ namespace BlinkayOccupation.PaymentsWorker
         private readonly ILogger<PaymentProcessWorker> _logger;
         private string _environment;
 
-        private readonly IStayPaymentService _stayPaymentService;
+        //private readonly IStayPaymentService _stayPaymentService;
+        private readonly IServiceProvider _serviceProvider;
 
         public PaymentProcessWorker(
             ILogger<PaymentProcessWorker> logger,
-            IStayPaymentService stayPaymentService)
+            IServiceProvider serviceProvider)
         {
             _environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             _logger = logger;
-            _stayPaymentService = stayPaymentService;
+            _serviceProvider = serviceProvider;
         }
 
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -36,6 +39,10 @@ namespace BlinkayOccupation.PaymentsWorker
             {
                 _logger.LogError(ex, "PaymentProcessWorker-{environment}:An error has occured when processing worker.", _environment);
             }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
 
         private async Task ProcessInitEndPaymentsEachMinute(CancellationToken token)
@@ -44,8 +51,14 @@ namespace BlinkayOccupation.PaymentsWorker
             {
                 try
                 {
-                    _logger.LogInformation("PaymentProcessWorker-{environment}: Processing payments...", _environment);
-                    await _stayPaymentService.ProcessInitEndPaymentStay();
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var stayPaymentService = scope.ServiceProvider.GetRequiredService<IStayPaymentService>();
+                        _logger.LogInformation("PaymentProcessWorker-{environment}: Processing payments...", _environment);
+                        await stayPaymentService.ProcessInitEndPaymentStay();
+                    }
+                    //await _stayPaymentService.ProcessInitEndPaymentStay();
+                    token.ThrowIfCancellationRequested();
 
                     DateTime nextMinute = DateTime.Now.AddMinutes(1);
                     nextMinute = new DateTime(nextMinute.Year, nextMinute.Month, nextMinute.Day, nextMinute.Hour, nextMinute.Minute, 0);
@@ -53,6 +66,11 @@ namespace BlinkayOccupation.PaymentsWorker
                     _logger.LogInformation("Next payment task scheduled for: {nextMinute}", nextMinute);
 
                     await Task.Delay(delay, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Payments process has been canceled.");
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -67,13 +85,28 @@ namespace BlinkayOccupation.PaymentsWorker
             {
                 try
                 {
-                    DateTime now = DateTime.Now;
-                    _logger.LogInformation("PaymentProcessWorker-{environment}: Processing snapshot... Actual time: {now}", _environment, now);
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var stayPaymentService = scope.ServiceProvider.GetRequiredService<IStayPaymentService>();
+                        DateTime now = DateTime.Now;
+                        _logger.LogInformation("Processing snapshot... Actual time: {now}", now);
 
-                    await _stayPaymentService.ProcessOccupationsSnapshot();
+                        await stayPaymentService.ProcessOccupationsSnapshot();
+                    }
+
+                    token.ThrowIfCancellationRequested();
+                    //DateTime now = DateTime.Now;
+                    //_logger.LogInformation("PaymentProcessWorker-{environment}: Processing snapshot... Actual time: {now}", _environment, now);
+
+                    //await _stayPaymentService.ProcessOccupationsSnapshot();
 
                     _logger.LogInformation("Next snapshot task scheduled in 15 minutes...");
                     await Task.Delay(TimeSpan.FromMinutes(15), token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Snapshot process has been canceled.");
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -88,35 +121,82 @@ namespace BlinkayOccupation.PaymentsWorker
             {
                 try
                 {
-                    var installations = await _stayPaymentService.GetAllInstallationsAsync();
-
-                    var tasks = new List<Task>();
-
-                    foreach (var installation in installations)
+                    using (var scope = _serviceProvider.CreateScope())
                     {
-                        tasks.Add(Task.Run(async () =>
+                        var stayPaymentService = scope.ServiceProvider.GetRequiredService<IStayPaymentService>();
+                        var installations = await stayPaymentService.GetAllInstallationsAsync();
+
+                        var tasks = new List<Task>();
+
+                        foreach (var installation in installations)
                         {
-                            DateTime now = installation.DateTimeNow();
-                            DateTime tomorrow = now.Date.AddDays(1);
-                            DateTime nextRunTime = tomorrow.AddMinutes(5);
-
-                            if (nextRunTime < now)
+                            tasks.Add(Task.Run(async () =>
                             {
-                                nextRunTime = nextRunTime.AddDays(1);
-                            }
+                                if (token.IsCancellationRequested) return;
 
-                            TimeSpan delay = nextRunTime - now;
+                                using (var innerScope = _serviceProvider.CreateScope())
+                                {
+                                    var scopedStayPaymentService = innerScope.ServiceProvider.GetRequiredService<IStayPaymentService>();
 
-                            _logger.LogInformation("Next real occupation clone task for Installation {installationId} scheduled for: {nextMidnight}", installation.Id, nextRunTime);
+                                    DateTime now = installation.DateTimeNow();
+                                    DateTime tomorrow = now.Date.AddDays(1);
+                                    DateTime nextRunTime = tomorrow.AddMinutes(5);
 
-                            await Task.Delay(delay, token);
+                                    if (nextRunTime < now)
+                                    {
+                                        nextRunTime = nextRunTime.AddDays(1);
+                                    }
 
-                            _logger.LogInformation("Clonando ocupación real para la instalación {installationId}...", installation.Id);
-                            await _stayPaymentService.CloneOccupationForInstallation(installation);
-                        }));
+                                    TimeSpan delay = nextRunTime - now;
+
+                                    _logger.LogInformation("Next real occupation clone task for Installation {installationId} scheduled for: {nextMidnight}", installation.Id, nextRunTime);
+
+                                    await Task.Delay(delay, token);
+
+                                    if (token.IsCancellationRequested) return;
+
+                                    _logger.LogInformation("Cloning real occupation for installation {installationId}...", installation.Id);
+                                    await scopedStayPaymentService.CloneOccupationForInstallation(installation);
+                                }
+                            }));
+                        }
+
+                        await Task.WhenAll(tasks);
                     }
+                    //    var installations = await _stayPaymentService.GetAllInstallationsAsync();
 
-                    await Task.WhenAll(tasks);
+                    //var tasks = new List<Task>();
+
+                    //foreach (var installation in installations)
+                    //{
+                    //    tasks.Add(Task.Run(async () =>
+                    //    {
+                    //        DateTime now = installation.DateTimeNow();
+                    //        DateTime tomorrow = now.Date.AddDays(1);
+                    //        DateTime nextRunTime = tomorrow.AddMinutes(5);
+
+                    //        if (nextRunTime < now)
+                    //        {
+                    //            nextRunTime = nextRunTime.AddDays(1);
+                    //        }
+
+                    //        TimeSpan delay = nextRunTime - now;
+
+                    //        _logger.LogInformation("Next real occupation clone task for Installation {installationId} scheduled for: {nextMidnight}", installation.Id, nextRunTime);
+
+                    //        await Task.Delay(delay, token);
+
+                    //        _logger.LogInformation("Clonando ocupación real para la instalación {installationId}...", installation.Id);
+                    //        await _stayPaymentService.CloneOccupationForInstallation(installation);
+                    //    }));
+                    //}
+
+                    //await Task.WhenAll(tasks);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Clone task has been canceled.");
+                    return;
                 }
                 catch (Exception ex)
                 {

@@ -12,5 +12,32 @@ namespace BlinkayOccupation.Domain.Repositories.ParkingRight
 
             return await context.ParkingRights.Where(x => ids.Contains(x.ExternalId)).ToListAsync();
         }
+
+        public async Task<Models.ParkingRights?> GetByValidPlateAsync(string plate, DateTime date, TimeSpan expandBy, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (string.IsNullOrWhiteSpace(plate)) throw new ArgumentException("Plate cannot be null or empty.", nameof(plate));
+
+            var parkingRights = await context.ParkingRights.Include(x => x.Tariff).Where(x => x.Plates != null && x.Plates.Contains(plate) && x.ValidFrom - expandBy <= date && date < x.ValidTo.Value + expandBy).ToListAsync();
+
+            switch (parkingRights.Count)
+            {
+                case 0:
+                    return null;
+
+                case 1:
+                    return parkingRights.FirstOrDefault();
+            }
+
+            var inside = parkingRights.FirstOrDefault(x => x.ValidFrom <= date && date < x.ValidTo);
+            if (inside is not null)
+            {
+                return inside;
+            }
+            else
+            {
+                return parkingRights.FirstOrDefault();
+            }
+        }
     }
 }

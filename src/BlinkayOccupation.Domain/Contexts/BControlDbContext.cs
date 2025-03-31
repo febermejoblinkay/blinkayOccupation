@@ -12,6 +12,7 @@ public partial class BControlDbContext : DbContext
 {
     private readonly IConfiguration _configuration;
     private readonly AuditInterceptor _auditInterceptor = new();
+    private string DbSchema = string.Empty;
 
     public BControlDbContext(DbContextOptions<BControlDbContext> options, IConfiguration configuration)
         : base(options)
@@ -42,11 +43,13 @@ public partial class BControlDbContext : DbContext
 
         string environmentVariable = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
-        if (environmentVariable == "pre-usa")//BORRAR       
+        if (environmentVariable == "Development")//BORRAR       
         {
             optionsBuilder.LogTo(Console.WriteLine);
             optionsBuilder.EnableSensitiveDataLogging(true);
         }
+
+        DbSchema = environmentVariable == "pre-usa" || environmentVariable == "Development" ? "preprod" : "prod";
     }
 
     public virtual DbSet<Attachments> Attachments { get; set; }
@@ -126,7 +129,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Attachments>(entity =>
         {
-            entity.ToTable("attachments", "preprod");
+            entity.ToTable("attachments", DbSchema);
 
             entity.HasIndex(e => e.Created, "IX_attachments_Created");
 
@@ -145,14 +148,14 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Blobs>(entity =>
         {
-            entity.ToTable("blobs", "preprod");
+            entity.ToTable("blobs", DbSchema);
 
             entity.HasIndex(e => e.Created, "IX_blobs_Created");
         });
 
         modelBuilder.Entity<Capacities>(entity =>
         {
-            entity.ToTable("capacities", "preprod");
+            entity.ToTable("capacities", DbSchema);
 
             entity.HasIndex(e => e.InstallationId, "IX_capacities_InstallationId");
 
@@ -186,7 +189,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<ConsolidatedOccupation>(entity =>
         {
-            entity.ToTable("consolidated_occupation", "preprod");
+            entity.ToTable("consolidated_occupation", DbSchema);
 
             entity.HasIndex(e => e.Date, "IX_consolidated_occupation_Date");
 
@@ -202,12 +205,12 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<DataProtectionKeys>(entity =>
         {
-            entity.ToTable("DataProtectionKeys", "preprod");
+            entity.ToTable("DataProtectionKeys", DbSchema);
         });
 
         modelBuilder.Entity<InputDevices>(entity =>
         {
-            entity.ToTable("input_devices", "preprod");
+            entity.ToTable("input_devices", DbSchema);
 
             entity.HasIndex(e => e.ConfigurationLastUpdated, "IX_input_devices_Configuration_LastUpdated");
 
@@ -235,7 +238,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Installations>(entity =>
         {
-            entity.ToTable("installations", "preprod");
+            entity.ToTable("installations", DbSchema);
 
             entity.HasIndex(e => e.ExternalId, "IX_installations_ExternalId");
 
@@ -259,7 +262,7 @@ public partial class BControlDbContext : DbContext
         {
             entity
                 .HasNoKey()
-                .ToView("occupancy_status", "preprod");
+                .ToView("occupancy_status", DbSchema);
 
             entity.Property(e => e.Attachmentsstorageid).HasColumnName("attachmentsstorageid");
             entity.Property(e => e.ConfigurationEnterGracePeriod).HasColumnName("Configuration_EnterGracePeriod");
@@ -279,7 +282,7 @@ public partial class BControlDbContext : DbContext
         {
             entity
                 .HasNoKey()
-                .ToView("occupancy_status_by_zones", "preprod");
+                .ToView("occupancy_status_by_zones", DbSchema);
 
             entity.Property(e => e.Attachmentsstoragedatetime).HasColumnName("attachmentsstoragedatetime");
             entity.Property(e => e.Attachmentsstorageid).HasColumnName("attachmentsstorageid");
@@ -294,7 +297,7 @@ public partial class BControlDbContext : DbContext
         {
             entity
                 .HasNoKey()
-                .ToView("occupation_events", "preprod");
+                .ToView("occupation_events", DbSchema);
 
             entity.Property(e => e.EnterAttachments).HasColumnName("enter_attachments");
             entity.Property(e => e.EnterVehicleColor).HasColumnName("enter_vehicle_color");
@@ -336,7 +339,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Occupations>(entity =>
         {
-            entity.ToTable("occupations", "preprod");
+            entity.ToTable("occupations", DbSchema);
 
             entity.HasIndex(e => e.Date, "IX_occupations_Date");
 
@@ -376,7 +379,7 @@ public partial class BControlDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK_occupations_snapshot");
 
-            entity.ToTable("occupations_snapshots", "preprod");
+            entity.ToTable("occupations_snapshots", DbSchema);
 
             entity.HasIndex(e => e.InstallationId, "IX_occupations_snapshot_InstallationId");
 
@@ -416,7 +419,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<ParkingEvents>(entity =>
         {
-            entity.ToTable("parking_events", "preprod");
+            entity.ToTable("parking_events", DbSchema);
 
             entity.HasIndex(e => e.Enter, "IX_parking_events_Enter");
 
@@ -460,7 +463,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<ParkingRights>(entity =>
         {
-            entity.ToTable("parking_rights", "preprod");
+            entity.ToTable("parking_rights", DbSchema);
 
             entity.HasIndex(e => e.Deleted, "IX_parking_rights_Deleted");
 
@@ -506,7 +509,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Shapes>(entity =>
         {
-            entity.ToTable("shapes", "preprod");
+            entity.ToTable("shapes", DbSchema);
 
             entity.HasIndex(e => e.ExternalId, "IX_shapes_ExternalId");
 
@@ -522,7 +525,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Spaces>(entity =>
        {
-           entity.ToTable("spaces", "preprod");
+           entity.ToTable("spaces", DbSchema);
 
            entity.HasIndex(e => e.BoundingBoxBottom, "IX_spaces_BoundingBox_Bottom");
 
@@ -576,7 +579,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Stays>(entity =>
         {
-            entity.ToTable("stays", "preprod");
+            entity.ToTable("stays", DbSchema);
 
             entity.HasIndex(e => e.CaseId, "IX_stays_CaseId");
 
@@ -613,7 +616,7 @@ public partial class BControlDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK_parking_right_stays");
 
-            entity.ToTable("stays_parking_rights", "preprod");
+            entity.ToTable("stays_parking_rights", DbSchema);
 
             entity.HasIndex(e => e.ParkingRightId, "IX_stays_parking_rights_ParkingRightId");
 
@@ -637,7 +640,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<StreetSections>(entity =>
         {
-            entity.ToTable("street_sections", "preprod");
+            entity.ToTable("street_sections", DbSchema);
 
             entity.HasIndex(e => e.BoundingBoxBottom, "IX_street_sections_BoundingBox_Bottom");
 
@@ -691,7 +694,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Streets>(entity =>
         {
-            entity.ToTable("streets", "preprod");
+            entity.ToTable("streets", DbSchema);
 
             entity.HasIndex(e => e.ExternalId, "IX_streets_ExternalId");
 
@@ -713,7 +716,7 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Tariffs>(entity =>
         {
-            entity.ToTable("tariffs", "preprod");
+            entity.ToTable("tariffs", DbSchema);
 
             entity.HasIndex(e => e.InstallationId, "IX_tariffs_InstallationId");
 
@@ -728,12 +731,12 @@ public partial class BControlDbContext : DbContext
 
         modelBuilder.Entity<Users>(entity =>
         {
-            entity.ToTable("users", "preprod");
+            entity.ToTable("users", DbSchema);
         });
 
         modelBuilder.Entity<VehicleEvents>(entity =>
         {
-            entity.ToTable("vehicle_events", "preprod");
+            entity.ToTable("vehicle_events", DbSchema);
 
             entity.HasIndex(e => e.Created, "IX_vehicle_events_Created");
 
@@ -776,12 +779,12 @@ public partial class BControlDbContext : DbContext
         {
             entity
                 .HasNoKey()
-                .ToView("vw_parking_rights", "preprod");
+                .ToView("vw_parking_rights", DbSchema);
         });
 
         modelBuilder.Entity<Zones>(entity =>
         {
-            entity.ToTable("zones", "preprod");
+            entity.ToTable("zones", DbSchema);
 
             entity.HasIndex(e => e.BoundingBoxBottom, "IX_zones_BoundingBox_Bottom");
 

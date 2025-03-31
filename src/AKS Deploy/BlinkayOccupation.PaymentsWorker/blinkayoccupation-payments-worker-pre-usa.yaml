@@ -1,0 +1,58 @@
+     
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blinkayoccupation-payments-worker-pre
+spec:
+  selector: 
+    matchLabels:
+      app: blinkayoccupation-payments-worker-pre
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5 
+  template:
+    metadata:
+      labels:
+        app: blinkayoccupation-payments-worker-pre
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      serviceAccountName: default
+      containers:
+        - name: blinkayoccupation-payments-worker-pre
+          image: blinkay.azurecr.io/blinkayoccupationpaymentsworker:v1
+          imagePullPolicy: Always         
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "pre-usa"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi  
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: blinkayoccupation-payments-worker-pre
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: blinkayoccupation-payments-worker-pre
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+  

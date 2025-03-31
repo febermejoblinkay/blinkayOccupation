@@ -1,5 +1,7 @@
 ﻿using BlinkayOccupation.Application.Exceptions;
+using System.Collections.Generic;
 using System.Net;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace BlinkayOccupation.API.Middlewares
 {
@@ -48,6 +50,11 @@ namespace BlinkayOccupation.API.Middlewares
             catch (ParkingRightsNoValidEndDateException ex)
             {
                 _logger.LogWarning(ex, "The Parking right has no validTo date defined.");
+                await HandleExceptionAsync(httpContext, ex, HttpStatusCode.BadRequest);
+            }
+            catch (LastReceivedEventDateException ex)
+            {
+                _logger.LogWarning(ex, "Last received event date can't be before internal event date.");
                 await HandleExceptionAsync(httpContext, ex, HttpStatusCode.BadRequest);
             }
             catch (Exception ex)

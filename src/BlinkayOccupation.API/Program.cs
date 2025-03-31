@@ -1,6 +1,8 @@
 ﻿using BlinkayOccupation.API.Extensions;
 using BlinkayOccupation.API.Middlewares;
 using BlinkayOccupation.API.Validators.Stays;
+using BlinkayOccupation.Application.Models;
+using BlinkayOccupation.Application.Services.AzureBlob;
 using BlinkayOccupation.Domain.Contexts;
 using BlinkayOccupation.Infrastructure.Security;
 using FluentValidation;
@@ -21,6 +23,24 @@ builder.Services.AddDbContextFactory<BControlDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("bControlDb");
     options.UseNpgsql(connectionString);
+});
+
+IConfiguration configuration = builder.Configuration.GetSection("AzureBlobStorage");
+builder.Services.Configure<BlobStorageSettings>(configuration);
+builder.Services.AddSingleton<IBlobStorage, AzureBlobStorage>(provider =>
+{
+    var logger = provider.GetRequiredService<ILogger<AzureBlobStorage>>();
+    var config = provider.GetRequiredService<IConfiguration>();
+    var settings = config.GetSection("AzureBlobStorage").Get<BlobStorageSettings>();
+    var blobStorage = new AzureBlobStorage(logger);
+    blobStorage.SetEndpoint(settings.BlobEndpoint);
+
+    if (!blobStorage.SetContainer(settings.ContainerName))
+    {
+        throw new Exception("Failed to configure Blob Container.");
+    }
+
+    return blobStorage;
 });
 
 builder.Services.AddCustomRepositories();
@@ -53,7 +73,7 @@ if (builder.Environment.IsDevelopment() && Environment.GetEnvironmentVariable("D
     //});
 }
 
-builder.Services.AddValidatorsFromAssemblyContaining<AddStayRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateVehicleParkingRequestValidator>();
 
 
 var app = builder.Build();
