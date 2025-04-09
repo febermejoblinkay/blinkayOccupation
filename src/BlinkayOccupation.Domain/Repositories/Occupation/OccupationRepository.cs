@@ -7,6 +7,42 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
 {
     public class OccupationRepository : IOccupationRepository
     {
+        public async Task<List<Occupations>> GetCurrentOccupations(BControlDbContext context, List<Installations> installations)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            var paramsList = installations.Select(x => Tuple.Create(x.Id, x.DateTimeNow())).ToList();
+            var results = await GetOccupationsByInsDateAsync(paramsList, context);
+            //var queryable = context.Occupations.Include(x => x.Installation).Include(x => x.Zone).Include(x => x.Tariff);//.Where(x => x.Date.Value.Date == DateTime.UtcNow.Date);
+
+            return results;
+        }
+
+        private async Task<List<Occupations>> GetOccupationsByInsDateAsync(List<Tuple<string, DateTime>> filters, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (filters == null || !filters.Any())
+            {
+                return new List<Occupations>();
+            }
+
+            var query = context.Occupations.Include(x => x.Installation).Include(x => x.Zone).Include(x => x.Tariff).AsQueryable();
+
+            var orPredicates = filters.Select<Tuple<string, DateTime>, Expression<Func<Occupations, bool>>>(f =>
+                (Occupations s) =>
+                    (f.Item1 == s.InstallationId) &&
+                    (f.Item2.Date == s.Date.Value.Date)
+            ).ToList();
+
+            var finalPredicate = orPredicates.Aggregate((accumulatedPredicate, currentPredicate) =>
+                accumulatedPredicate.Or(currentPredicate)
+            );
+
+            query = query.Where(finalPredicate);
+
+            return await query.ToListAsync();
+        }
+
         public async Task AddAsync(Occupations occupation, BControlDbContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

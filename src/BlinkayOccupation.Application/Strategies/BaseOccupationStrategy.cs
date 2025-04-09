@@ -31,6 +31,7 @@ namespace BlinkayOccupation.Application.Strategies
             var installationId = stay.InstallationId;
             var oldStayHasntPayment = oldState.Split(',')[1] == "NP";
             var newStayHasPayment = !newState.Equals("N") ? newState.Split(',')[1] == "P" : false;
+            var isNewStay = newState.Equals("N");
             var existingOccupations = await _occupationRepository.GetOccupationsAvailable(date, installationId, zoneId, tariffId, context);
             var capacity = await _capacitiesRepository.GetAvailableCapacities(installationId, zoneId, tariffId, stay.EntryDate, stay.ExitDate, context);
 
@@ -41,7 +42,7 @@ namespace BlinkayOccupation.Application.Strategies
             }
             else if (existingOccupations.Count == 2)
             {
-                await HandleTwoOccupations(stay, existingOccupations, oldStayHasntPayment, newStayHasPayment, capacity, context);
+                await HandleTwoOccupations(stay, existingOccupations, oldStayHasntPayment, newStayHasPayment, capacity, context, isNewStay);
             }
             else if (existingOccupations.Count == 1 && oldStayHasntPayment && newStayHasPayment)
             {
@@ -63,7 +64,8 @@ namespace BlinkayOccupation.Application.Strategies
             bool oldStayHasntPayment,
             bool newStayHasPayment,
             Capacities? capacity,
-            BControlDbContext context)
+            BControlDbContext context, 
+            bool isNewStay)
         {
             var occupationWithTariff = existingOccupations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.TariffId));
             var occupationWithoutTariff = existingOccupations.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.TariffId));

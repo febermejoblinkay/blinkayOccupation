@@ -1,5 +1,4 @@
-﻿using BlinkayOccupation.Application.Exceptions;
-using BlinkayOccupation.Application.Models;
+﻿using BlinkayOccupation.Application.Models;
 using BlinkayOccupation.Application.Services.AzureBlob;
 using BlinkayOccupation.Application.Services.Stay;
 using BlinkayOccupation.Domain.Helpers;
@@ -16,11 +15,7 @@ using BlinkayOccupation.Domain.Repositories.VehicleEvent;
 using BlinkayOccupation.Domain.Repositories.Zone;
 using BlinkayOccupation.Domain.UnitOfWork;
 using Microsoft.Extensions.Logging;
-using System.ComponentModel;
 using System.Diagnostics.Metrics;
-using System.Net.Mail;
-using System.Threading;
-using System.Xml.Linq;
 
 namespace BlinkayOccupation.Application.Services.ParkingEvent
 {
@@ -158,23 +153,23 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
             StreetSections streetSection = null;
             Spaces space = null;
 
+            if (!string.IsNullOrWhiteSpace(request.ParkingArea.ZoneId))
+            {
+                zone = await _zoneRepository.GetByIdAsync(request.ParkingArea.ZoneId, _unitOfWork.Context);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ParkingArea.StreetSectionId))
+            {
+                streetSection = await _streetSectionRepository.GetByIdAsync(request.ParkingArea.StreetSectionId, _unitOfWork.Context);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ParkingArea.SpaceId))
+            {
+                space = await _spaceRepository.GetByIdAsync(request.ParkingArea.SpaceId, _unitOfWork.Context);
+            }
+
             if (request.Direction == (int)ParkingEventDirection.Enter)
             {
-                if (!string.IsNullOrWhiteSpace(request.ParkingArea.ZoneId))
-                {
-                    zone = await _zoneRepository.GetByIdAsync(request.ParkingArea.ZoneId, _unitOfWork.Context);
-                }
-
-                if (!string.IsNullOrWhiteSpace(request.ParkingArea.StreetSectionId))
-                {
-                    streetSection = await _streetSectionRepository.GetByIdAsync(request.ParkingArea.StreetSectionId, _unitOfWork.Context);
-                }
-
-                if (!string.IsNullOrWhiteSpace(request.ParkingArea.SpaceId))
-                {
-                    space = await _spaceRepository.GetByIdAsync(request.ParkingArea.SpaceId, _unitOfWork.Context);
-                }
-
                 AddParkingEvent(installation, "vehicle_plate");
                 parkingEvent = new ParkingEvents
                 {
@@ -206,12 +201,8 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
                         Id = Guid.CreateVersion7().ToString(),
                         Tariff = tariff,
                         InstallationId = installation.Id,
-                        Installation = installation,
-                        Zone = zone,
                         ZoneId = zone != null ? zone.Id : null,
-                        StreetSection = streetSection,
                         StreetSectionId = streetSection != null ? streetSection.Id : null,
-                        Space = space,
                         SpaceId = space != null ? space.Id : null,
                         DeviceId = request.Device.Id,
                         Type = (int)ParkingEventType.Space
@@ -230,7 +221,19 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
             }
 
             await CloseOpenedParkingEvents(toClose, request.Device.Date);
-            await AssignParkingRight(parkingEvent, request);
+            //await AssignParkingRight(parkingEvent, request);
+
+            var existingPkEvent = await _parkingEventsRepository.GetByIdAsync(parkingEvent.Id, _unitOfWork.Context);
+
+            if (existingPkEvent is null)
+            {
+                await _parkingEventsRepository.AddAsync(parkingEvent, _unitOfWork.Context);
+            }
+            else
+            {
+                await _parkingEventsRepository.UpdateAsync(parkingEvent, _unitOfWork.Context);
+            }
+            //await _unitOfWork.Context.SaveChangesAsync();
 
             return parkingEvent.Id;
         }
@@ -259,7 +262,7 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
             {
                 return;
             }
-            
+
             parkingEvent.ParkingRight = parkingRight;
             parkingEvent.Tariff = parkingRight.Tariff;
 
@@ -270,7 +273,11 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
 
             parkingEvent.Plate = GetBestPlate(parkingRight.Plates, parkingEvent);
             parkingEvent.PlateConfidence = 1;
-            await _unitOfWork.Context.SaveChangesAsync();
+
+            if (parkingRight is not null)
+            {
+                await _parkingRightsRepository.AddAsync(parkingRight, _unitOfWork.Context);
+            }
         }
 
         private async Task CloseOpenedParkingEvents(IEnumerable<ParkingEvents> toClose, DateTime date)

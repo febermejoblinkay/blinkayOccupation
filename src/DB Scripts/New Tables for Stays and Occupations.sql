@@ -164,6 +164,21 @@ CREATE INDEX IF NOT EXISTS "IX_occupations_Updated"
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
+-- 1. Solo uno permitido por combinación cuando TariffId IS NULL
+CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_null_tariff
+    ON preprod.occupations ("Date", "InstallationId", "ZoneId")
+    WHERE "TariffId" IS NULL;
+
+-- 2. Solo uno permitido por combinación cuando ZoneId IS NULL (pero TariffId no lo es)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_null_zone
+    ON preprod.occupations ("Date", "InstallationId", "TariffId")
+    WHERE "ZoneId" IS NULL AND "TariffId" IS NOT NULL;
+
+-- 3. General para cuando ambos tienen valor
+CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_full
+    ON preprod.occupations ("Date", "InstallationId", "ZoneId", "TariffId")
+    WHERE "ZoneId" IS NOT NULL AND "TariffId" IS NOT NULL;	
+	
 -- Agregar nueva columna a la tabla preprod.tariffs
 ALTER TABLE preprod.tariffs 
 ADD COLUMN "PaymentApplyAllDay" BOOLEAN DEFAULT FALSE;
@@ -228,3 +243,17 @@ CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_Updated"
     ON preprod.occupations_snapshots USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
+	
+	
+-- New tariffs in PRE for Marlins --
+
+INSERT INTO preprod.tariffs(
+	"Id", "Updated", "InstallationId", "Name", "VehicleMakes")
+VALUES
+('110901', NOW(), '110009', 'Event Rate', '{}'),
+('110902', NOW(), '110009', 'Whitelist Marlins', '{}'),
+('110903', NOW(), '110009', 'On Demand - Premium Parking Rate', '{}'),
+('110904', NOW(), '110009', 'Reservation- Premium Parking Rate', '{}'),
+('110905', NOW(), '110009', 'Validations - Premium Parking Rate', '{}'),
+('110906', NOW(), '110009', 'Staff - Premium Parking Rate', '{}'),
+('110907', NOW(), '110009', 'MLB Ballpark - Premium Parking Rate', '{}');	

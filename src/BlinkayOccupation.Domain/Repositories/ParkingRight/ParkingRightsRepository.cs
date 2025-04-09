@@ -1,10 +1,20 @@
 ﻿using BlinkayOccupation.Domain.Contexts;
+using BlinkayOccupation.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlinkayOccupation.Domain.Repositories.ParkingRight
 {
     public class ParkingRightsRepository : IParkingRightsRepository
     {
+        public async Task AddAsync(ParkingRights pRight, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (pRight == null) throw new ArgumentException("pRight Object can not be null.", nameof(pRight));
+
+            context.ParkingRights.Add(pRight);
+            await context.SaveChangesAsync();
+        }
+
         public async Task<List<Models.ParkingRights>?> GetByExternalIdsAsync(List<string> ids, BControlDbContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

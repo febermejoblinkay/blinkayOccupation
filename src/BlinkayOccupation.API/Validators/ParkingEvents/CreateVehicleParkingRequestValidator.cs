@@ -41,24 +41,24 @@ namespace BlinkayOccupation.API.Validators.Stays
                 .Must((plate) => !string.Equals(plate, "NOPLATE", StringComparison.Ordinal))
                 .WithMessage("Plate must be NOPLATE.");
 
-                RuleFor(x => x.Vehicle.Make)
-                    .NotEmpty().WithMessage("Vehicle Make is required.");
+                //RuleFor(x => x.Vehicle.Make)
+                //    .NotEmpty().WithMessage("Vehicle Make is required.");
 
-                RuleFor(x => x.Vehicle.Model)
-                    .NotEmpty().WithMessage("Vehicle Model is required.");
+                //RuleFor(x => x.Vehicle.Model)
+                //    .NotEmpty().WithMessage("Vehicle Model is required.");
 
-                RuleFor(x => x.Vehicle.Color)
-                    .NotEmpty().WithMessage("Vehicle Color is required.");
+                //RuleFor(x => x.Vehicle.Color)
+                //    .NotEmpty().WithMessage("Vehicle Color is required.");
 
-                RuleFor(x => x.Vehicle.Nationality)
-                    .NotEmpty().WithMessage("Vehicle Nationality is required.");
+                //RuleFor(x => x.Vehicle.Nationality)
+                //    .NotEmpty().WithMessage("Vehicle Nationality is required.");
 
-                RuleFor(x => x.Vehicle.Confidence)
-                    .NotNull().WithMessage("Vehicle Confidence is required.");
+                //RuleFor(x => x.Vehicle.Confidence)
+                //    .NotNull().WithMessage("Vehicle Confidence is required.");
             });
 
             RuleFor(x => x.Direction)
-                .InclusiveBetween(0, 1).WithMessage("Direction must be 0 or 1.");
+                .InclusiveBetween(0, 2).WithMessage("Direction must be 1 or 2.");
             
             RuleFor(x => x.Direction)
             .Must(direction => (ParkingEventDirection)direction == ParkingEventDirection.Enter || (ParkingEventDirection)direction == ParkingEventDirection.Exit)

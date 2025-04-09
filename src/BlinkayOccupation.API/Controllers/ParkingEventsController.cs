@@ -1,3 +1,4 @@
+using BlinkayOccupation.API.ModelBinders;
 using BlinkayOccupation.Application.Models;
 using BlinkayOccupation.Application.Services.ParkingEvent;
 using BlinkayOccupation.Application.Services.Stay;
@@ -32,24 +33,26 @@ public class ParkingEventsController : ControllerBase
     }
 
     [HttpPost("vehicle"), Consumes("multipart/form-data")]
-    public async Task<IActionResult> AddVehicle([FromForm, BindRequired] CreateVehicleParkingRequest request, [BindRequired] IEnumerable<IFormFile> files)
+    public async Task<IActionResult> AddVehicle(
+    [FromForm, BindRequired, ModelBinder(BinderType = typeof(JsonModelBinder))] CreateVehicleParkingRequest arguments,
+    IEnumerable<IFormFile>? files)
     {
-        var requestMessage = JsonConvert.SerializeObject(request);
+        var requestMessage = JsonConvert.SerializeObject(arguments);
         _logger.LogInformation("BlinkayOccupation-AddVehicle: request received: {request}", requestMessage);
 
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var validationResult = await _validator.ValidateAsync(request);
+        var validationResult = await _validator.ValidateAsync(arguments);
 
         if (!validationResult.IsValid)
         {
             return BadRequest(validationResult);
         }
 
-        var attachments = GetAttachments(files);
-        request.Pictures = attachments;
-        var newId = await _parkingEventsService.CreateParkingEvent(request);
+        var attachments = GetAttachments(files ?? Enumerable.Empty<IFormFile>());
+        arguments.Pictures = attachments;
+        var newId = await _parkingEventsService.CreateParkingEvent(arguments);
         _logger.LogInformation("BlinkayOccupation-AddVehicle: New Parking Event with Id: {id} created correctly.", newId);
 
         return Ok(newId);

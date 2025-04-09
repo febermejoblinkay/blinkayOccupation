@@ -208,7 +208,7 @@ namespace BlinkayOccupation.Application.Services.Stay
                 }
                 if (entryDate.HasValue)
                 {
-                    return currentPkRights.Any(x => entryDate.Value >= x?.ValidFrom);
+                    return currentPkRights.Any(x => entryDate.Value <= x?.ValidTo);
                 }
                 if (exitDate.HasValue)
                 {

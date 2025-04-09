@@ -1,4 +1,5 @@
 ﻿using BlinkayOccupation.Application.Services.Auth;
+using BlinkayOccupation.Application.Services.Occupation;
 using BlinkayOccupation.Application.Services.ParkingEvent;
 using BlinkayOccupation.Application.Services.Stay;
 using BlinkayOccupation.Application.Strategies;
@@ -53,6 +54,7 @@ namespace BlinkayOccupation.API.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IStayService, StayService>();
             services.AddScoped<IParkingEventsService, ParkingEventsService>();
+            services.AddScoped<IOccupationsService, OccupationsService>();
             services.AddScoped<IOccupationStrategyFactory, OccupationStrategyFactory>();
             services.AddScoped<IOccupationStrategy, EPNS_to_N_Strategy>();
             services.AddScoped<IOccupationStrategy, ENPNS_to_N_Strategy>();
