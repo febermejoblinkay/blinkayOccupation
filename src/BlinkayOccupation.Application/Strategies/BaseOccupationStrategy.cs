@@ -26,7 +26,7 @@ namespace BlinkayOccupation.Application.Strategies
             if (stay.EntryEvent == null && stay.ExitEvent == null && stay is null)
                 return;
 
-            var date = DateTime.UtcNow.Date;
+            var date = stay.Installation.DateTimeNow();
             var zoneId = stay.ZoneId;
             var installationId = stay.InstallationId;
             var oldStayHasntPayment = oldState.Split(',')[1] == "NP";

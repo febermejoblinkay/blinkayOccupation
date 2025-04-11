@@ -23,7 +23,7 @@ spec:
       serviceAccountName: default
       containers:
         - name: blinkayoccupation-payments-worker-pre
-          image: blinkay.azurecr.io/blinkayoccupationpaymentsworker:v1
+          image: blinkay.azurecr.io/blinkayoccupationpaymentsworker:v2
           imagePullPolicy: Always         
           env:
             - name: ASPNETCORE_ENVIRONMENT

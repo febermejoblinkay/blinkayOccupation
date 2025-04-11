@@ -94,7 +94,7 @@ namespace BlinkayOccupation.Application.Services.ParkingEvent
                 var duplicated = await FindDuplicateByPlate(request);
                 if (duplicated is not null)
                 {
-                    return await HandleDuplicated(duplicated, request);
+                    return await HandleDuplicated(duplicated, request); //borrar esto, devolver el id externo del evento
                 }
 
                 var attachments = await StorePictures(inputDeviceFromBd, request, installation);

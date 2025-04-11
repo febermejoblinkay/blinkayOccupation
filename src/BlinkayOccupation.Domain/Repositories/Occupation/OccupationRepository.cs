@@ -7,6 +7,36 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
 {
     public class OccupationRepository : IOccupationRepository
     {
+        public async Task<List<Occupations>> GetOccupationsByInstallation(Installations installation, BControlDbContext context)
+        {
+            var query = from oc in context.Occupations
+                        join ins in context.Installations on oc.InstallationId equals ins.Id into OccupationsInstallations
+                        from ocuIns in OccupationsInstallations.DefaultIfEmpty()
+                        join zone in context.Zones on oc.ZoneId equals zone.Id into OccupationsZones
+                        from ocuZones in OccupationsZones.DefaultIfEmpty()
+                        join ta in context.Tariffs on oc.TariffId equals ta.Id into OccupationsTariffs
+                        from ocutariff in OccupationsTariffs.DefaultIfEmpty()
+                        where ocuIns != null && ocuIns.Id == installation.Id
+                        select new Occupations
+                        {
+                            Id = oc.Id,
+                            Date = oc.Date,
+                            TariffId = ocutariff.Id,
+                            Tariff = ocutariff,
+                            ZoneId = ocuZones.Id,
+                            Zone = ocuZones,
+                            Installation = ocuIns,
+                            PaidOccupation = oc.PaidOccupation,
+                            PaidRealOccupation = oc.PaidRealOccupation,
+                            UnpaidRealOccupation = oc.UnpaidRealOccupation,
+                            Total = oc.Total
+                        };
+
+            var list = await query.Where(x => x.Date.HasValue && x.Date.Value.Date == installation.DateTimeNow().Date).ToListAsync();
+
+            return list;
+        }
+
         public async Task<List<Occupations>> GetCurrentOccupations(BControlDbContext context, List<Installations> installations)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

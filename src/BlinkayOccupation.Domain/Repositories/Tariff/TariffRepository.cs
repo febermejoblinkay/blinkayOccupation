@@ -6,6 +6,13 @@ namespace BlinkayOccupation.Domain.Repositories.Tariff
 {
     public class TariffRepository : ITariffRepository
     {
+        public async Task<List<Tariffs>> GetTariffByInsId(string insId, BControlDbContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            return await context.Tariffs.Where(x => x.InstallationId == insId).ToListAsync();
+        }
+
         public async Task<Tariffs?> FindByVehicleMake(string installationId, string? vehicleMake, BControlDbContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

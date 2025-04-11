@@ -1,4 +1,7 @@
-v3 --> (07-04-2025)
+v5 --> (09-04-2025)
+	1) New endpoint for retrieving occupations by instalationId and Tariff.
+
+v4 --> (07-04-2025)
 	1) New endpoint for retrieving current occupation.
 
 v3 --> (31-03-2025)

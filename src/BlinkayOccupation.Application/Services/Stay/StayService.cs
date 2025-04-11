@@ -305,6 +305,7 @@ namespace BlinkayOccupation.Application.Services.Stay
                 Id = Guid.CreateVersion7().ToString(),
                 CaseId = request.CaseId.HasValue && (CameraOperationCase)request.CaseId.Value != CameraOperationCase.Undefined ? request.CaseId.Value : (int?)null,
                 InstallationId = request.InstallationId,
+                Installation = installation,
                 ZoneId = request.ZoneId,
                 EntryEventId = !string.IsNullOrWhiteSpace(request.EntryEventId) && existingPkEvents.Any(x => x.Id == request.EntryEventId) ? request.EntryEventId : null,
                 ExitEventId = !string.IsNullOrWhiteSpace(request.ExitEventId) && existingPkEvents.Any(x => x.Id == request.ExitEventId) ? request.ExitEventId : null,

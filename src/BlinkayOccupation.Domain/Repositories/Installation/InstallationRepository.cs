@@ -10,7 +10,7 @@ namespace BlinkayOccupation.Domain.Repositories.Installation
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Id can not be null or empty.", nameof(id));
 
-            return await context.Installations.FirstOrDefaultAsync(x => x.Id == id);
+            return await context.Installations.Include(x => x.Zones).FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<List<Models.Installations>> GetAllAsync(BControlDbContext context)

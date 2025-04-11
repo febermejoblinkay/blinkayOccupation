@@ -23,7 +23,7 @@ spec:
       serviceAccountName: default
       containers:
         - name: blinkayoccupation-api-pre
-          image: blinkay.azurecr.io/blinkayoccupationapi:v4
+          image: blinkay.azurecr.io/blinkayoccupationapi:v5
           imagePullPolicy: Always
           ports:
             - name: http

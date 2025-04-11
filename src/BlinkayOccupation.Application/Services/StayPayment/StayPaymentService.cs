@@ -53,17 +53,17 @@ namespace BlinkayOccupation.Application.Services.StayPayment
                     var stayPkRights = stay.StaysParkingRights.Select(x => x.ParkingRight).ToList();
                     var currentParkingRight = stayPkRights.FirstOrDefault(x => x.ValidTo.Value > installationDateNow);
                     var currentTariff = currentParkingRight?.Tariff;
-                    var occupationToUpdate = await _occupationRepository.GetOccupationsAvailable(installationDateNow.Date, stay.InstallationId, stay.ZoneId, currentTariff.Id, _unitOfWork.Context);
+                    var occupationToUpdate = await _occupationRepository.GetOccupationsAvailable(installationDateNow.Date, stay.InstallationId, stay.ZoneId, currentTariff?.Id, _unitOfWork.Context);
                     var currentOccupation = occupationToUpdate.FirstOrDefault();
 
-                    if (currentTariff.PaymentApplyAllDay == true)
+                    if (currentTariff?.PaymentApplyAllDay == true)
                     {
                         var existingOccupations = await _occupationRepository.GetExistingOccupationsByDate(
                             currentParkingRight.ValidFrom,
                             currentParkingRight.ValidTo.Value,
                             stay.InstallationId,
                             stay.ZoneId,
-                            currentTariff.Id,
+                            currentTariff?.Id,
                             _unitOfWork.Context
                         );
 
@@ -73,7 +73,7 @@ namespace BlinkayOccupation.Application.Services.StayPayment
 
                         var existingDates = existingOccupations.Select(o => o.Date.Value.Date).ToHashSet();
                         var newOccupations = new List<Occupations>();
-                        var capacity = await _capacitiesRepository.GetAvailableCapacities(stay.InstallationId, stay.ZoneId, currentTariff.Id, stay.EntryDate, stay.ExitDate, _unitOfWork.Context);
+                        var capacity = await _capacitiesRepository.GetAvailableCapacities(stay.InstallationId, stay.ZoneId, currentTariff?.Id, stay.EntryDate, stay.ExitDate, _unitOfWork.Context);
                         var existingOccupationsHasChanged = false;
                         foreach (var date in allDates)
                         {
@@ -93,7 +93,7 @@ namespace BlinkayOccupation.Application.Services.StayPayment
                                     Date = date,
                                     InstallationId = stay.InstallationId,
                                     ZoneId = stay.ZoneId,
-                                    TariffId = currentTariff.Id,
+                                    TariffId = currentTariff?.Id,
                                     PaidOccupation = 1,
                                     PaidRealOccupation = 0,
                                     UnpaidRealOccupation = 0,
@@ -120,7 +120,7 @@ namespace BlinkayOccupation.Application.Services.StayPayment
                         }
                     }
 
-                    if (stay.InitPaymentProcessed == false && currentTariff != null && currentTariff.PaymentApplyAllDay == false && installationDateNow > stay.InitPaymentDate)
+                    if (currentOccupation is not null && stay.InitPaymentProcessed == false && currentTariff != null && currentTariff.PaymentApplyAllDay == false && installationDateNow > stay.InitPaymentDate)
                     {
                         currentOccupation.PaidOccupation += 1;
                         stay.InitPaymentProcessed = true;
@@ -135,7 +135,7 @@ namespace BlinkayOccupation.Application.Services.StayPayment
                         await _unitOfWork.Context.SaveChangesAsync();
                     }
 
-                    if (stay.InitPaymentProcessed == true && installationDateNow > stay.EndPaymentDate)
+                    if (currentOccupation is not null && stay.InitPaymentProcessed == true && installationDateNow > stay.EndPaymentDate)
                     {
                         currentOccupation.PaidOccupation--;
                         stay.EndPaymentProcessed = true;

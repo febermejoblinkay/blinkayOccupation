@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS preprod.stays
+CREATE TABLE IF NOT EXISTS prod.stays
 (
     "Id" text COLLATE pg_catalog."default" NOT NULL,
     "EntryEventId" text COLLATE pg_catalog."default",
@@ -17,69 +17,69 @@ CREATE TABLE IF NOT EXISTS preprod.stays
     "Updated" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_stays" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_stays_installations_InstallationId" FOREIGN KEY ("InstallationId")
-        REFERENCES preprod.installations ("Id") MATCH SIMPLE
+        REFERENCES prod.installations ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_stays_parking_events_EntryEventId" FOREIGN KEY ("EntryEventId")
-        REFERENCES preprod.parking_events ("Id") MATCH SIMPLE
+        REFERENCES prod.parking_events ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_stays_parking_events_ExitEventId" FOREIGN KEY ("ExitEventId")
-        REFERENCES preprod.parking_events ("Id") MATCH SIMPLE
+        REFERENCES prod.parking_events ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_stays_zones_ZoneId" FOREIGN KEY ("ZoneId")
-        REFERENCES preprod.zones ("Id") MATCH SIMPLE
+        REFERENCES prod.zones ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE
 )
 
 CREATE INDEX IF NOT EXISTS "IX_stays_EntryEventId"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("EntryEventId" ASC NULLS LAST)
     TABLESPACE pg_default;
 	
 CREATE INDEX IF NOT EXISTS "IX_stays_ExitEventId"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("ExitEventId" ASC NULLS LAST)
     TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS "IX_stays_InstallationId"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("InstallationId" ASC NULLS LAST)
     TABLESPACE pg_default;	
 
 CREATE INDEX IF NOT EXISTS "IX_stays_ZoneId"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("ZoneId" ASC NULLS LAST)
     TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS "IX_stays_CaseId"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("CaseId" ASC NULLS LAST)
     TABLESPACE pg_default;
 	
 CREATE INDEX IF NOT EXISTS "IX_stays_Updated"
-    ON preprod.stays USING btree
+    ON prod.stays USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS "IX_stays_InitPaymentDate"
-    ON preprod.stays USING btree ("InitPaymentDate" ASC NULLS LAST);
+    ON prod.stays USING btree ("InitPaymentDate" ASC NULLS LAST);
 
 CREATE INDEX IF NOT EXISTS "IX_stays_EndPaymentDate"
-    ON preprod.stays USING btree ("EndPaymentDate" ASC NULLS LAST);
+    ON prod.stays USING btree ("EndPaymentDate" ASC NULLS LAST);
 
 CREATE INDEX IF NOT EXISTS "IX_stays_InitPaymentProcessed"
-    ON preprod.stays USING btree ("InitPaymentProcessed" ASC NULLS LAST);
+    ON prod.stays USING btree ("InitPaymentProcessed" ASC NULLS LAST);
 
 CREATE INDEX IF NOT EXISTS "IX_stays_EndPaymentProcessed"
-    ON preprod.stays USING btree ("EndPaymentProcessed" ASC NULLS LAST);	
+    ON prod.stays USING btree ("EndPaymentProcessed" ASC NULLS LAST);	
 
 
 ---- stays_parking_rights -- 
 
-CREATE TABLE IF NOT EXISTS preprod.stays_parking_rights
+CREATE TABLE IF NOT EXISTS prod.stays_parking_rights
 (
     "Id" text COLLATE pg_catalog."default" NOT NULL,
 	"StayId" text COLLATE pg_catalog."default" NOT NULL DEFAULT ''::text,
@@ -89,33 +89,33 @@ CREATE TABLE IF NOT EXISTS preprod.stays_parking_rights
 	"Updated" timestamp with time zone NOT NULL,
 	CONSTRAINT "PK_parking_right_stays" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_parking_right_stays_StayId" FOREIGN KEY ("StayId")
-        REFERENCES preprod.stays ("Id") MATCH SIMPLE
+        REFERENCES prod.stays ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_parking_rights_ParkingRightId" FOREIGN KEY ("ParkingRightId")
-        REFERENCES preprod.parking_rights ("Id") MATCH SIMPLE
+        REFERENCES prod.parking_rights ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE
 )
 
 CREATE INDEX IF NOT EXISTS "IX_stays_parking_rights_StayId"
-    ON preprod.stays_parking_rights USING btree
+    ON prod.stays_parking_rights USING btree
     ("StayId" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
 CREATE INDEX IF NOT EXISTS "IX_stays_parking_rights_ParkingRightId"
-    ON preprod.stays_parking_rights USING btree
+    ON prod.stays_parking_rights USING btree
     ("ParkingRightId" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
 CREATE INDEX IF NOT EXISTS "IX_stays_parking_rights_Updated"
-    ON preprod.stays_parking_rights USING btree
+    ON prod.stays_parking_rights USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
 
 -- occupations	
 
-CREATE TABLE IF NOT EXISTS preprod.occupations
+CREATE TABLE IF NOT EXISTS prod.occupations
 (
     "Id" text COLLATE pg_catalog."default" NOT NULL,
 	"Date" timestamp with time zone NULL,
@@ -131,65 +131,65 @@ CREATE TABLE IF NOT EXISTS preprod.occupations
 	"Updated" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_occupations" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_occupations_installations_InstallationId" FOREIGN KEY ("InstallationId")
-        REFERENCES preprod.installations ("Id") MATCH SIMPLE
+        REFERENCES prod.installations ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_occupations_zones_ZoneId" FOREIGN KEY ("ZoneId")
-        REFERENCES preprod.zones ("Id") MATCH SIMPLE
+        REFERENCES prod.zones ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_occupations_tariffs_TariffId" FOREIGN KEY ("TariffId")
-        REFERENCES preprod.tariffs ("Id") MATCH SIMPLE
+        REFERENCES prod.tariffs ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
-        ON DELETE CASCADE,		
-);
+        ON DELETE CASCADE		
+)
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_Date"
-    ON preprod.occupations USING btree
+    ON prod.occupations USING btree
     ("Date" ASC NULLS LAST)
     TABLESPACE pg_default;	
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_InstallationId"
-    ON preprod.occupations USING btree
+    ON prod.occupations USING btree
     ("InstallationId" ASC NULLS LAST)
     TABLESPACE pg_default;	
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_ZoneId"
-    ON preprod.occupations USING btree
+    ON prod.occupations USING btree
     ("ZoneId" ASC NULLS LAST)
     TABLESPACE pg_default;
 	
 CREATE INDEX IF NOT EXISTS "IX_occupations_Updated"
-    ON preprod.occupations USING btree
+    ON prod.occupations USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
 -- 1. Solo uno permitido por combinación cuando TariffId IS NULL
 CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_null_tariff
-    ON preprod.occupations ("Date", "InstallationId", "ZoneId")
+    ON prod.occupations ("Date", "InstallationId", "ZoneId")
     WHERE "TariffId" IS NULL;
 
 -- 2. Solo uno permitido por combinación cuando ZoneId IS NULL (pero TariffId no lo es)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_null_zone
-    ON preprod.occupations ("Date", "InstallationId", "TariffId")
+    ON prod.occupations ("Date", "InstallationId", "TariffId")
     WHERE "ZoneId" IS NULL AND "TariffId" IS NOT NULL;
 
 -- 3. General para cuando ambos tienen valor
 CREATE UNIQUE INDEX IF NOT EXISTS uq_occupations_full
-    ON preprod.occupations ("Date", "InstallationId", "ZoneId", "TariffId")
+    ON prod.occupations ("Date", "InstallationId", "ZoneId", "TariffId")
     WHERE "ZoneId" IS NOT NULL AND "TariffId" IS NOT NULL;	
 	
--- Agregar nueva columna a la tabla preprod.tariffs
-ALTER TABLE preprod.tariffs 
+-- Agregar nueva columna a la tabla prod.tariffs
+ALTER TABLE prod.tariffs 
 ADD COLUMN "PaymentApplyAllDay" BOOLEAN DEFAULT FALSE;
 
--- Permitir valores nulos en la columna TariffId de la tabla preprod.capacities
-ALTER TABLE preprod.capacities 
+-- Permitir valores nulos en la columna TariffId de la tabla prod.capacities
+ALTER TABLE prod.capacities 
 ALTER COLUMN "TariffId" DROP NOT NULL;
 
 
 -- tabla para snapshots
-CREATE TABLE IF NOT EXISTS preprod.occupations_snapshots
+CREATE TABLE IF NOT EXISTS prod.occupations_snapshots
 (
     "Id" text COLLATE pg_catalog."default" NOT NULL,
 	"OccupationDate" timestamp with time zone NULL,
@@ -206,48 +206,48 @@ CREATE TABLE IF NOT EXISTS preprod.occupations_snapshots
 	"Updated" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_occupations_snapshot" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_occupations_snapshot_installations_InstallationId" FOREIGN KEY ("InstallationId")
-        REFERENCES preprod.installations ("Id") MATCH SIMPLE
+        REFERENCES prod.installations ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_occupations_snapshot_zones_ZoneId" FOREIGN KEY ("ZoneId")
-        REFERENCES preprod.zones ("Id") MATCH SIMPLE
+        REFERENCES prod.zones ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE,
     CONSTRAINT "FK_occupations_snapshot_tariffs_TariffId" FOREIGN KEY ("TariffId")
-        REFERENCES preprod.tariffs ("Id") MATCH SIMPLE
+        REFERENCES prod.tariffs ("Id") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE		
 )
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_SnapshotDate"
-    ON preprod.occupations_snapshots USING btree
+    ON prod.occupations_snapshots USING btree
     ("SnapshotDate" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
 CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_OccupationDate"
-    ON preprod.occupations_snapshots USING btree
+    ON prod.occupations_snapshots USING btree
     ("OccupationDate" ASC NULLS LAST)
     TABLESPACE pg_default;		
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_InstallationId"
-    ON preprod.occupations_snapshots USING btree
+    ON prod.occupations_snapshots USING btree
     ("InstallationId" ASC NULLS LAST)
     TABLESPACE pg_default;	
 
 CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_ZoneId"
-    ON preprod.occupations_snapshots USING btree
+    ON prod.occupations_snapshots USING btree
     ("ZoneId" ASC NULLS LAST)
     TABLESPACE pg_default;
 	
 CREATE INDEX IF NOT EXISTS "IX_occupations_snapshot_Updated"
-    ON preprod.occupations_snapshots USING btree
+    ON prod.occupations_snapshots USING btree
     ("Updated" ASC NULLS LAST)
     TABLESPACE pg_default;	
 	
 	
 -- New tariffs in PRE for Marlins --
 
-INSERT INTO preprod.tariffs(
+INSERT INTO prod.tariffs(
 	"Id", "Updated", "InstallationId", "Name", "VehicleMakes")
 VALUES
 ('110901', NOW(), '110009', 'Event Rate', '{}'),

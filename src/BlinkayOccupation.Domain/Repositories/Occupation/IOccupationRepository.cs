@@ -5,6 +5,7 @@ namespace BlinkayOccupation.Domain.Repositories.Occupation
 {
     public interface IOccupationRepository
     {
+        Task<List<Occupations>> GetOccupationsByInstallation(Installations installation, BControlDbContext context);
         Task AddAsync(Occupations occupation, BControlDbContext context);
         Task UpdateAsync(Occupations occupation, BControlDbContext context);
         Task UpdateRangeAsync(List<Occupations> occupations, BControlDbContext context);
